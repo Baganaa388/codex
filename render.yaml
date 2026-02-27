@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: codex-olympiad
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build:all && cd server && npm run migrate:prod && npm run seed:prod
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@codex.mn
+      - key: ADMIN_PASSWORD
+        sync: false

@@ -6,6 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:server": "cd server && npm install && npm run build",
+    "build:all": "npm run build && npm run build:server",
+    "start": "node server/dist/index.js",
+    "migrate": "cd server && npm run migrate",
+    "seed": "cd server && npm run seed",
     "preview": "vite preview"
   },
   "dependencies": {

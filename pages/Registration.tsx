@@ -1,21 +1,74 @@
 
-import React, { useState } from 'react';
-import { ShieldCheck, Info, Calendar, Clock, MapPin, CheckCircle, ArrowRight, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldCheck, Info, Calendar, Clock, MapPin, CheckCircle, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { Card, SectionHeading, Button, Badge } from '../components/UI';
-import { RegistrationFormData } from '../types';
+import { RegistrationFormData, ApiResponse, Contest } from '../types';
 
 export const Registration = () => {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [regNumber, setRegNumber] = useState<string | null>(null);
+  const [contests, setContests] = useState<Contest[]>([]);
+  const [selectedContestId, setSelectedContestId] = useState<number | null>(null);
   const [formData, setFormData] = useState<Partial<RegistrationFormData>>({
     languages: [],
     level: 'Эхлэгч',
-    category: 'Оюутан'
+    category: 'Бага'
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    fetch('/api/contests')
+      .then(res => res.json())
+      .then((data: ApiResponse<Contest[]>) => {
+        if (data.success && data.data) {
+          const open = data.data.filter(c => c.status === 'registration');
+          setContests(open);
+          if (open.length > 0) {
+            setSelectedContestId(open[0].id);
+          }
+        }
+      })
+      .catch(() => { /* contests will remain empty, form shows without contest selection */ });
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setError(null);
+
+    if (!selectedContestId) {
+      setError('Тэмцээн сонгоно уу');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/contestants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contest_id: selectedContestId,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          organization: formData.organization,
+          category: formData.category,
+        }),
+      });
+      const data: ApiResponse<{ reg_number: string }> = await res.json();
+      if (data.success && data.data) {
+        setRegNumber(data.data.reg_number);
+        setIsSubmitted(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        setError(data.error ?? 'Бүртгэл амжилтгүй боллоо');
+      }
+    } catch {
+      setError('Сервертэй холбогдож чадсангүй');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const toggleLanguage = (lang: string) => {
@@ -35,7 +88,12 @@ export const Registration = () => {
           <CheckCircle size={48} />
         </div>
         <h2 className="text-4xl font-black mb-6 tracking-tighter">Бүртгэл амжилттай!</h2>
-        <p className="text-slate-400 text-lg mb-12">Таны хүсэлтийг хүлээж авлаа. Баталгаажуулах имэйлийг таны {formData.email} хаяг руу илгээсэн.</p>
+        {regNumber && (
+          <div className="mb-6 inline-block bg-cyan-500/20 text-cyan-400 px-6 py-3 rounded-xl font-mono text-2xl font-black">
+            {regNumber}
+          </div>
+        )}
+        <p className="text-slate-400 text-lg mb-12">Таны хүсэлтийг хүлээж авлаа. Бүртгэлийн дугаараа хадгалаарай.</p>
         
         <Card className="bg-gradient-to-br from-cyan-500/10 to-purple-500/10 border-cyan-500/30 text-left">
           <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
@@ -107,9 +165,9 @@ export const Registration = () => {
               <div className="space-y-2">
                 <label className="text-sm font-bold text-slate-400">Насны ангилал</label>
                 <select className="w-full glass border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-cyan-500 appearance-none cursor-pointer" onChange={e => setFormData({...formData, category: e.target.value as any})}>
-                  <option value="Оюутан">Бага анги</option>
-                  <option value="Ахлах">Дунд анги</option>
-                  <option value="Нээлттэй">Ахлах анги</option>
+                  <option value="Бага">Бага анги</option>
+                  <option value="Дунд">Дунд анги</option>
+                  <option value="Ахлах">Ахлах анги</option>
                 </select>
               </div>
               <div className="space-y-2">
@@ -153,8 +211,18 @@ export const Registration = () => {
               </label>
             </div>
 
-            <Button type="submit" className="w-full py-5 text-xl">
-              Бүртгэл илгээх <ArrowRight size={24} />
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
+                {error}
+              </div>
+            )}
+
+            <Button type="submit" className="w-full py-5 text-xl" disabled={isLoading}>
+              {isLoading ? (
+                <><Loader2 size={24} className="animate-spin" /> Илгээж байна...</>
+              ) : (
+                <>Бүртгэл илгээх <ArrowRight size={24} /></>
+              )}
             </Button>
           </form>
         </Card>

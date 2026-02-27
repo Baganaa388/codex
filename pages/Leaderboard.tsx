@@ -1,18 +1,93 @@
 
-import React, { useState } from 'react';
-import { Search, Filter, Trophy, Star, Medal, Zap } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, Filter, Trophy, Star, Medal, Zap, Loader2 } from 'lucide-react';
 import { MOCK_LEADERBOARD, PROBLEM_STATS } from '../constants';
 import { Card, SectionHeading, Badge } from '../components/UI';
+import { ApiResponse, ApiLeaderboardEntry, ApiProblemStat, Contest, LeaderboardEntry, ProblemStat } from '../types';
+
+function toDisplayEntry(entry: ApiLeaderboardEntry, index: number): LeaderboardEntry {
+  return {
+    rank: Number(entry.rank),
+    name: `${entry.last_name?.charAt(0)}.${entry.first_name}`,
+    organization: entry.organization,
+    points: entry.total_points,
+    penalty: String(entry.penalty_minutes),
+    location: '',
+    isTop3: Number(entry.rank) <= 3,
+  };
+}
+
+function toDisplayProblemStat(stat: ApiProblemStat): ProblemStat {
+  return { title: stat.title, solvedCount: stat.solved_count };
+}
 
 export const Leaderboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [category, setCategory] = useState('Оюутан');
+  const [category, setCategory] = useState('Бага анги');
   const [year, setYear] = useState('2025');
+  const [contests, setContests] = useState<Contest[]>([]);
+  const [selectedContestId, setSelectedContestId] = useState<number | null>(null);
+  const [apiEntries, setApiEntries] = useState<LeaderboardEntry[] | null>(null);
+  const [apiProblemStats, setApiProblemStats] = useState<ProblemStat[] | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const filteredData = MOCK_LEADERBOARD.filter(entry => 
-    entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    entry.organization.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    fetch('/api/contests')
+      .then(res => res.json())
+      .then((data: ApiResponse<Contest[]>) => {
+        if (data.success && data.data && data.data.length > 0) {
+          setContests(data.data);
+          setSelectedContestId(data.data[0].id);
+        }
+      })
+      .catch(() => { /* fallback to mock data */ });
+  }, []);
+
+  const categoryMap: Record<string, string> = {
+    'Бага анги': 'Бага',
+    'Дунд анги': 'Дунд',
+    'Ахлах анги': 'Ахлах',
+  };
+
+  const fetchLeaderboard = useCallback(async () => {
+    if (!selectedContestId) return;
+    setIsLoading(true);
+    try {
+      const catParam = categoryMap[category] ? `&category=${encodeURIComponent(categoryMap[category])}` : '';
+      const searchParam = searchTerm ? `&search=${encodeURIComponent(searchTerm)}` : '';
+      const res = await fetch(`/api/leaderboard/${selectedContestId}?limit=50${catParam}${searchParam}`);
+      const data: ApiResponse<ApiLeaderboardEntry[]> = await res.json();
+      if (data.success && data.data) {
+        setApiEntries(data.data.map(toDisplayEntry));
+      }
+
+      const statsRes = await fetch(`/api/leaderboard/${selectedContestId}/problems`);
+      const statsData: ApiResponse<ApiProblemStat[]> = await statsRes.json();
+      if (statsData.success && statsData.data) {
+        setApiProblemStats(statsData.data.map(toDisplayProblemStat));
+      }
+    } catch {
+      /* fallback to mock data */
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedContestId, category, searchTerm]);
+
+  useEffect(() => {
+    if (selectedContestId) {
+      fetchLeaderboard();
+    }
+  }, [selectedContestId, category, fetchLeaderboard]);
+
+  const displayData = apiEntries ?? MOCK_LEADERBOARD;
+  const displayProblemStats = apiProblemStats ?? PROBLEM_STATS;
+
+  const filteredData = apiEntries
+    ? displayData
+    : MOCK_LEADERBOARD.filter(entry =>
+        entry.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        entry.organization.toLowerCase().includes(searchTerm.toLowerCase())
+      );
 
   return (
     <div className="max-w-7xl mx-auto px-6 space-y-12">
@@ -75,7 +150,7 @@ export const Leaderboard = () => {
               Шилдэг бодлого
             </h4>
             <div className="space-y-4">
-              {PROBLEM_STATS.map((p, i) => (
+              {displayProblemStats.map((p, i) => (
                 <div key={i} className="flex justify-between items-center">
                   <span className="text-sm text-slate-400">{p.title}</span>
                   <Badge color="yellow">{p.solvedCount} бодсон</Badge>

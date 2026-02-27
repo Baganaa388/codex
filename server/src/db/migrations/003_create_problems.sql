@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS problems (
+  id SERIAL PRIMARY KEY,
+  contest_id INTEGER NOT NULL REFERENCES contests(id) ON DELETE CASCADE,
+  title VARCHAR(255) NOT NULL,
+  max_points INTEGER NOT NULL DEFAULT 100,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_problems_contest_id ON problems(contest_id);
