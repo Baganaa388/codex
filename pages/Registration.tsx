@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Info, Calendar, Clock, MapPin, CheckCircle, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
-import { Card, SectionHeading, Button, Badge } from '../components/UI';
+import { ShieldCheck, Info, Calendar, CheckCircle, ArrowRight, Sparkles, Loader2, Trophy } from 'lucide-react';
+import { Card, SectionHeading, Button } from '../components/UI';
 import { RegistrationFormData, ApiResponse, Contest } from '../types';
 
 export const Registration = () => {
@@ -11,11 +11,14 @@ export const Registration = () => {
   const [regNumber, setRegNumber] = useState<string | null>(null);
   const [contests, setContests] = useState<Contest[]>([]);
   const [selectedContestId, setSelectedContestId] = useState<number | null>(null);
+  const [contestsLoading, setContestsLoading] = useState(true);
   const [formData, setFormData] = useState<Partial<RegistrationFormData>>({
     languages: [],
     level: 'Эхлэгч',
     category: 'Бага'
   });
+
+  const selectedContest = contests.find(c => c.id === selectedContestId) ?? null;
 
   useEffect(() => {
     fetch('/api/contests')
@@ -29,7 +32,8 @@ export const Registration = () => {
           }
         }
       })
-      .catch(() => { /* contests will remain empty, form shows without contest selection */ });
+      .catch(() => { /* contests will remain empty */ })
+      .finally(() => setContestsLoading(false));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,12 +105,15 @@ export const Registration = () => {
             Бүртгэлийн хураангуй
           </h3>
           <div className="grid grid-cols-2 gap-y-4 text-sm">
+            <span className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Олимпиад</span>
+            <span className="text-white font-bold">{selectedContest?.name ?? '—'}</span>
+
             <span className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Овог нэр</span>
             <span className="text-white font-bold">{formData.lastName} {formData.firstName}</span>
-            
+
             <span className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Ангилал</span>
             <span className="text-white font-bold">{formData.category}</span>
-            
+
             <span className="text-slate-500 uppercase tracking-widest text-[10px] font-bold">Түвшин</span>
             <span className="text-white font-bold">{formData.level}</span>
 
@@ -127,17 +134,74 @@ export const Registration = () => {
     );
   }
 
+  if (contestsLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 size={32} className="animate-spin text-cyan-400" />
+      </div>
+    );
+  }
+
+  if (contests.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto px-6 py-20 text-center">
+        <Trophy size={48} className="text-slate-700 mx-auto mb-4" />
+        <h2 className="text-2xl font-bold mb-2">Бүртгэл нээлттэй олимпиад байхгүй байна</h2>
+        <p className="text-slate-500">Шинэ олимпиад зарлагдахад бүртгэл нээгдэнэ.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-3 gap-12">
       <div className="lg:col-span-2 space-y-12">
-        <SectionHeading 
-          title="Олимпиадад бүртгүүлэх" 
-          subtitle="CodeX[4]-д оролцох хүсэлтээ доорх маягтын дагуу илгээнэ үү." 
+        <SectionHeading
+          title="Олимпиадад бүртгүүлэх"
+          subtitle="Олимпиад сонгоод бүртгэлээ илгээнэ үү."
         />
-        
+
+        {/* Олимпиад сонголт */}
+        {contests.length > 1 && (
+          <div className="space-y-3">
+            <label className="text-sm font-bold text-slate-400 block">Олимпиад сонгох</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {contests.map(c => (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => setSelectedContestId(c.id)}
+                  className={`text-left p-4 rounded-2xl border transition-all ${
+                    selectedContestId === c.id
+                      ? 'bg-cyan-500/10 border-cyan-500/50'
+                      : 'border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <div className="font-bold">{c.name}</div>
+                  {c.description && <p className="text-xs text-slate-500 mt-1">{c.description}</p>}
+                  <p className="text-xs text-slate-500 mt-1">
+                    {new Date(c.start_time).toLocaleDateString('mn-MN')}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <Card className="relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/10 blur-3xl -z-10"></div>
-          
+
+          {selectedContest && (
+            <div className="mb-8 p-4 bg-cyan-500/5 border border-cyan-500/20 rounded-xl flex items-center gap-3">
+              <Trophy size={20} className="text-cyan-400 flex-shrink-0" />
+              <div>
+                <p className="font-bold text-cyan-400">{selectedContest.name}</p>
+                <p className="text-xs text-slate-500">
+                  {new Date(selectedContest.start_time).toLocaleDateString('mn-MN')} — {new Date(selectedContest.end_time).toLocaleDateString('mn-MN')}
+                </p>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
@@ -217,7 +281,7 @@ export const Registration = () => {
               </div>
             )}
 
-            <Button type="submit" className="w-full py-5 text-xl" disabled={isLoading}>
+            <Button type="submit" className="w-full py-5 text-xl" disabled={isLoading || !selectedContestId}>
               {isLoading ? (
                 <><Loader2 size={24} className="animate-spin" /> Илгээж байна...</>
               ) : (
@@ -234,45 +298,36 @@ export const Registration = () => {
             <Info size={20} className="text-cyan-400" />
             Олимпиадын мэдээлэл
           </h3>
-          <div className="space-y-6">
-            <div className="flex gap-4 items-center">
-              <div className="w-10 h-10 rounded-xl glass flex items-center justify-center text-cyan-400">
-                <Calendar size={20} />
-              </div>
+          {selectedContest ? (
+            <div className="space-y-6">
               <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Огноо</p>
-                <p className="font-bold">2026.04.15</p>
+                <p className="text-lg font-bold text-white">{selectedContest.name}</p>
+                {selectedContest.description && (
+                  <p className="text-sm text-slate-400 mt-1">{selectedContest.description}</p>
+                )}
+              </div>
+              <div className="flex gap-4 items-center">
+                <div className="w-10 h-10 rounded-xl glass flex items-center justify-center text-cyan-400">
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Эхлэх огноо</p>
+                  <p className="font-bold">{new Date(selectedContest.start_time).toLocaleDateString('mn-MN')}</p>
+                </div>
+              </div>
+              <div className="flex gap-4 items-center">
+                <div className="w-10 h-10 rounded-xl glass flex items-center justify-center text-purple-400">
+                  <Calendar size={20} />
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Дуусах огноо</p>
+                  <p className="font-bold">{new Date(selectedContest.end_time).toLocaleDateString('mn-MN')}</p>
+                </div>
               </div>
             </div>
-            <div className="flex gap-4 items-center">
-              <div className="w-10 h-10 rounded-xl glass flex items-center justify-center text-purple-400">
-                <Clock size={20} />
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Хугацаа</p>
-                <p className="font-bold">10:00–13:00 (3 цаг)</p>
-              </div>
-            </div>
-            <div className="flex gap-4 items-center">
-              <div className="w-10 h-10 rounded-xl glass flex items-center justify-center text-cyan-400">
-                <MapPin size={20} />
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 uppercase tracking-widest font-black">Байршил</p>
-                <p className="font-bold">Улаанбаатар</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="p-4 bg-yellow-500/5 border border-yellow-500/20 rounded-xl">
-            <p className="text-xs text-yellow-500 font-bold mb-2">Бүртгэлийн хугацаа:</p>
-            <p className="text-sm text-slate-300">2026.04.10 хүртэл нээлттэй.</p>
-          </div>
-
-          <div className="flex justify-between items-center pt-4 border-t border-white/10">
-            <span className="text-slate-400 font-bold">Оролцох хураамж:</span>
-            <Badge color="cyan">20,000 төгрөг</Badge>
-          </div>
+          ) : (
+            <p className="text-slate-500 text-sm">Олимпиад сонгоно уу.</p>
+          )}
         </Card>
 
         <Card className="bg-cyan-500/5 border-cyan-500/20">
@@ -283,6 +338,7 @@ export const Registration = () => {
           <ul className="space-y-3 text-xs text-slate-400 list-disc pl-4">
             <li>Нэг оролцогч зөвхөн нэг бүртгэл үүсгэнэ.</li>
             <li>Имэйл хаягаа зөв оруулсан эсэхээ шалгаарай.</li>
+            <li>Бүртгэлийн дугаараа хадгалаарай.</li>
           </ul>
         </Card>
       </div>

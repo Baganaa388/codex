@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Trophy, Medal, Loader2 } from 'lucide-react';
-import { Card, SectionHeading, Badge } from '../components/UI';
-import { ApiResponse, ApiLeaderboardEntry, ApiProblemStat, Contest } from '../types';
+import { Card, SectionHeading } from '../components/UI';
+import { ApiResponse, ApiLeaderboardEntry, Contest } from '../types';
 
 type CategoryKey = 'Бага' | 'Дунд' | 'Ахлах';
 
@@ -20,12 +20,6 @@ interface DisplayEntry {
   readonly isTop3: boolean;
 }
 
-interface DisplayProblemStat {
-  readonly title: string;
-  readonly solvedCount: number;
-  readonly maxPoints: number;
-}
-
 function toDisplayEntry(entry: ApiLeaderboardEntry): DisplayEntry {
   return {
     rank: Number(entry.rank),
@@ -37,17 +31,12 @@ function toDisplayEntry(entry: ApiLeaderboardEntry): DisplayEntry {
   };
 }
 
-function toDisplayProblemStat(stat: ApiProblemStat): DisplayProblemStat {
-  return { title: stat.title, solvedCount: stat.solved_count, maxPoints: stat.max_points };
-}
-
 export const Leaderboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [category, setCategory] = useState<CategoryKey>('Бага');
   const [contests, setContests] = useState<Contest[]>([]);
   const [selectedContestId, setSelectedContestId] = useState<number | null>(null);
   const [entries, setEntries] = useState<DisplayEntry[]>([]);
-  const [problemStats, setProblemStats] = useState<DisplayProblemStat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
@@ -72,11 +61,7 @@ export const Leaderboard = () => {
       const params = new URLSearchParams({ limit: '100', category });
       if (searchTerm) params.set('search', searchTerm);
 
-      const [lbRes, statsRes] = await Promise.all([
-        fetch(`/api/leaderboard/${selectedContestId}?${params}`),
-        fetch(`/api/leaderboard/${selectedContestId}/problems`),
-      ]);
-
+      const lbRes = await fetch(`/api/leaderboard/${selectedContestId}?${params}`);
       const lbData: ApiResponse<ApiLeaderboardEntry[]> = await lbRes.json();
       if (lbData.success && lbData.data) {
         setEntries(lbData.data.map(toDisplayEntry));
@@ -84,11 +69,6 @@ export const Leaderboard = () => {
       } else {
         setEntries([]);
         setTotalCount(0);
-      }
-
-      const statsData: ApiResponse<ApiProblemStat[]> = await statsRes.json();
-      if (statsData.success && statsData.data) {
-        setProblemStats(statsData.data.map(toDisplayProblemStat));
       }
     } catch {
       setEntries([]);
@@ -167,23 +147,6 @@ export const Leaderboard = () => {
             </div>
           </Card>
 
-          {/* Бодлогын статистик */}
-          {problemStats.length > 0 && (
-            <Card className="bg-gradient-to-br from-yellow-500/10 to-transparent border-yellow-500/20">
-              <h4 className="font-bold flex items-center gap-2 mb-4">
-                <Trophy size={18} className="text-yellow-500" />
-                Бодлогын статистик
-              </h4>
-              <div className="space-y-4">
-                {problemStats.map((p, i) => (
-                  <div key={i} className="flex justify-between items-center">
-                    <span className="text-sm text-slate-400">{p.title}</span>
-                    <Badge color="yellow">{p.solvedCount} бодсон</Badge>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
         </aside>
 
         {/* Хүснэгт */}
