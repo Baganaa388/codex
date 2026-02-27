@@ -3,7 +3,7 @@ services:
     name: codex-olympiad
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build:all && cd server && npm run migrate:prod && npm run seed:prod
+    buildCommand: npm install --include=dev && npm run build:all && cd server && npm run migrate:prod && npm run seed:prod
     startCommand: npm start
     envVars:
       - key: NODE_ENV
