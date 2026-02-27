@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npx vite build",
-    "build:server": "cd server && npm install && npm run build",
+    "build:server": "cd server && npm install --include=dev && npm run build",
     "build:all": "npm run build && npm run build:server",
     "start": "node server/dist/index.js",
     "migrate": "cd server && npm run migrate",
