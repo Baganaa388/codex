@@ -6,6 +6,7 @@ import { Home } from './pages/Home';
 import { Leaderboard } from './pages/Leaderboard';
 import { Registration } from './pages/Registration';
 import { Contact } from './pages/Contact';
+import { Admin } from './pages/admin/Admin';
 
 const App: React.FC = () => {
   const location = useLocation();
@@ -14,6 +15,14 @@ const App: React.FC = () => {
   React.useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
+
+  if (location.pathname.startsWith('/admin')) {
+    return (
+      <Routes>
+        <Route path="/admin/*" element={<Admin />} />
+      </Routes>
+    );
+  }
 
   return (
     <Layout>
