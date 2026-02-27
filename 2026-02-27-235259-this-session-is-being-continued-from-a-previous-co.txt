@@ -1,0 +1,382 @@
+
+╭─── Claude Code v2.1.62 ──────────────────────────────────────────────────────╮
+│                           │ Tips for getting started                         │
+│   Welcome back Batzaya!   │ Run /init to create a CLAUDE.md file with instr… │
+│                           │ ──────────────────────────────────────────────── │
+│          ▐▛███▜▌          │ Recent activity                                  │
+│         ▝▜█████▛▘         │ No recent activity                               │
+│           ▘▘ ▝▝           │                                                  │
+│                           │                                                  │
+│   Opus 4.6 · Claude Max   │                                                  │
+│    ~/Desktop/tee/codex    │                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+✻ Conversation compacted (ctrl+o for history)
+
+  ⎿  Read pages/Leaderboard.tsx (216 lines)
+  ⎿  Read App.tsx (40 lines)
+  ⎿  Read pages/admin/Admin.tsx (33 lines)
+  ⎿  Referenced file pages/admin/AdminContest.tsx
+  ⎿  Read pages/admin/AdminDashboard.tsx (164 lines)
+  ⎿  Plan file referenced (~/.claude/plans/elegant-knitting-popcorn.md)
+
+● Let me check the current state of the Registration page and recent changes.
+
+● Read 1 file (ctrl+o to expand)
+
+● Bash(git status)
+  ⎿  On branch main
+     Your branch is ahead of 'origin/main' by 2 commits.
+       (use "git push" to publish your local commits)
+     … +8 lines (ctrl+o to expand)
+
+● Good, the Leaderboard.tsx has already been updated (problem stats removed).
+  Now I need to improve the Registration page to prominently show olympiad
+  selection. The current page has the contest fetching logic but no visible
+  contest selector, and the sidebar has hardcoded info instead of dynamic
+  contest data.
+
+  Let me update the Registration page:
+
+● Update(pages/Registration.tsx)
+  ⎿  Added 7 lines, removed 3 lines
+      1  
+      2  import React, { useState, useEffect } from 'react';
+      3 -import { ShieldCheck, Info, Calendar, Clock, MapPin, CheckCircle
+        -, ArrowRight, Sparkles, Loader2 } from 'lucide-react';          
+      4 -import { Card, SectionHeading, Button, Badge } from '../componen
+        -ts/UI';                                                         
+      3 +import { ShieldCheck, Info, Calendar, CheckCircle, ArrowRight, S
+        +parkles, Loader2, Trophy } from 'lucide-react';                 
+      4 +import { Card, SectionHeading, Button } from '../components/UI';
+      5  import { RegistrationFormData, ApiResponse, Contest } from '../t
+         ypes';
+      6  
+      7  export const Registration = () => {
+     ...
+      11    const [regNumber, setRegNumber] = useState<string | null>(nul
+          l);
+      12    const [contests, setContests] = useState<Contest[]>([]);
+      13    const [selectedContestId, setSelectedContestId] = useState<nu
+          mber | null>(null);
+      14 +  const [contestsLoading, setContestsLoading] = useState(true);
+      15    const [formData, setFormData] = useState<Partial<Registration
+          FormData>>({
+      16      languages: [],
+      17      level: 'Эхлэгч',
+      18      category: 'Бага'
+      19    });
+      20  
+      21 +  const selectedContest = contests.find(c => c.id === selectedC
+         +ontestId) ?? null;                                             
+      22 +                                                               
+      23    useEffect(() => {
+      24      fetch('/api/contests')
+      25        .then(res => res.json())
+     ...
+      32            }
+      33          }
+      34        })
+      32 -      .catch(() => { /* contests will remain empty, form shows 
+         -without contest selection */ });                               
+      35 +      .catch(() => { /* contests will remain empty */ })       
+      36 +      .finally(() => setContestsLoading(false));               
+      37    }, []);
+      38  
+      39    const handleSubmit = async (e: React.FormEvent) => {
+
+● Now let me update the form section to add a prominent olympiad selector and
+  make the sidebar dynamic:
+
+● Update(pages/Registration.tsx)
+  ⎿  Added 89 lines, removed 40 lines
+      131      );
+      132    }
+      133  
+      134 +  if (contestsLoading) {                                      
+      135 +    return (                                                  
+      136 +      <div className="flex justify-center py-20">             
+      137 +        <Loader2 size={32} className="animate-spin text-cyan-4
+          +00" />                                                        
+      138 +      </div>                                                  
+      139 +    );                                                        
+      140 +  }                                                           
+      141 +                                                              
+      142 +  if (contests.length === 0) {                                
+      143 +    return (                                                  
+      144 +      <div className="max-w-2xl mx-auto px-6 py-20 text-center
+          +">                                                            
+      145 +        <Trophy size={48} className="text-slate-700 mx-auto mb
+          +-4" />                                                        
+      146 +        <h2 className="text-2xl font-bold mb-2">Бүртгэл нээлтт
+          +эй олимпиад байхгүй байна</h2>                                
+      147 +        <p className="text-slate-500">Шинэ олимпиад зарлагдаха
+          +д бүртгэл нээгдэнэ.</p>                                       
+      148 +      </div>                                                  
+      149 +    );                                                        
+      150 +  }                                                           
+      151 +                                                              
+      152    return (
+      153      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg
+           :grid-cols-3 gap-12">
+      154        <div className="lg:col-span-2 space-y-12">
+      137 -        <SectionHeading                                       
+      138 -          title="Олимпиадад бүртгүүлэх"                       
+      139 -          subtitle="CodeX[4]-д оролцох хүсэлтээ доорх маягтын 
+          -дагуу илгээнэ үү."                                            
+      155 +        <SectionHeading                                       
+      156 +          title="Олимпиадад бүртгүүлэх"                       
+      157 +          subtitle="Олимпиад сонгоод бүртгэлээ илгээнэ үү."   
+      158          />
+      141 -                                                              
+      159 +                                                              
+      160 +        {/* Олимпиад сонголт */}                              
+      161 +        {contests.length > 1 && (                             
+      162 +          <div className="space-y-3">                         
+      163 +            <label className="text-sm font-bold text-slate-400
+          + block">Олимпиад сонгох</label>                               
+      164 +            <div className="grid grid-cols-1 sm:grid-cols-2 ga
+          +p-3">                                                         
+      165 +              {contests.map(c => (                            
+      166 +                <button                                       
+      167 +                  key={c.id}                                  
+      168 +                  type="button"                               
+      169 +                  onClick={() => setSelectedContestId(c.id)}  
+      170 +                  className={`text-left p-4 rounded-2xl border
+          + transition-all ${                                            
+      171 +                    selectedContestId === c.id                
+      172 +                      ? 'bg-cyan-500/10 border-cyan-500/50'   
+      173 +                      : 'border-white/10 hover:border-white/20
+          +'                                                             
+      174 +                  }`}                                         
+      175 +                >                                             
+      176 +                  <div className="font-bold">{c.name}</div>   
+      177 +                  {c.description && <p className="text-xs text
+          +-slate-500 mt-1">{c.description}</p>}                         
+      178 +                  <p className="text-xs text-slate-500 mt-1"> 
+      179 +                    {new Date(c.start_time).toLocaleDateString
+          +('mn-MN')}                                                    
+      180 +                  </p>                                        
+      181 +                </button>                                     
+      182 +              ))}                                             
+      183 +            </div>                                            
+      184 +          </div>                                              
+      185 +        )}                                                    
+      186 +                                                              
+      187          <Card className="relative overflow-hidden">
+      188            <div className="absolute top-0 right-0 w-32 h-32 bg-
+           cyan-500/10 blur-3xl -z-10"></div>
+      144 -                                                              
+      189 +                                                              
+      190 +          {selectedContest && (                               
+      191 +            <div className="mb-8 p-4 bg-cyan-500/5 border bord
+          +er-cyan-500/20 rounded-xl flex items-center gap-3">           
+      192 +              <Trophy size={20} className="text-cyan-400 flex-
+          +shrink-0" />                                                  
+      193 +              <div>                                           
+      194 +                <p className="font-bold text-cyan-400">{select
+          +edContest.name}</p>                                           
+      195 +                <p className="text-xs text-slate-500">        
+      196 +                  {new Date(selectedContest.start_time).toLoca
+          +leDateString('mn-MN')} — {new Date(selectedContest.end_time).t
+          +oLocaleDateString('mn-MN')}                                   
+      197 +                </p>                                          
+      198 +              </div>                                          
+      199 +            </div>                                            
+      200 +          )}                                                  
+      201 +                                                              
+      202            <form onSubmit={handleSubmit} className="space-y-8">
+      203              <div className="grid grid-cols-1 md:grid-cols-2 ga
+           p-6">
+      204                <div className="space-y-2">
+     ...
+      278                </div>
+      279              )}
+      280  
+      224 -            <Button type="submit" className="w-full py-5 text-
+          -xl" disabled={isLoading}>                                     
+      281 +            <Button type="submit" className="w-full py-5 text-
+          +xl" disabled={isLoading || !selectedContestId}>               
+      282                {isLoading ? (
+      283                  <><Loader2 size={24} className="animate-spin" 
+           /> Илгээж байна...</>
+      284                ) : (
+     ...
+      295              <Info size={20} className="text-cyan-400" />
+      296              Олимпиадын мэдээлэл
+      297            </h3>
+      241 -          <div className="space-y-6">                         
+      242 -            <div className="flex gap-4 items-center">         
+      243 -              <div className="w-10 h-10 rounded-xl glass flex 
+          -items-center justify-center text-cyan-400">                   
+      244 -                <Calendar size={20} />                        
+      245 -              </div>                                          
+      298 +          {selectedContest ? (                                
+      299 +            <div className="space-y-6">                       
+      300                <div>
+      247 -                <p className="text-[10px] text-slate-500 upper
+          -case tracking-widest font-black">Огноо</p>                    
+      248 -                <p className="font-bold">2026.04.15</p>       
+      301 +                <p className="text-lg font-bold text-white">{s
+          +electedContest.name}</p>                                      
+      302 +                {selectedContest.description && (             
+      303 +                  <p className="text-sm text-slate-400 mt-1">{
+          +selectedContest.description}</p>                              
+      304 +                )}                                            
+      305                </div>
+      250 -            </div>                                            
+      251 -            <div className="flex gap-4 items-center">         
+      252 -              <div className="w-10 h-10 rounded-xl glass flex 
+          -items-center justify-center text-purple-400">                 
+      253 -                <Clock size={20} />                           
+      306 +              <div className="flex gap-4 items-center">       
+      307 +                <div className="w-10 h-10 rounded-xl glass fle
+          +x items-center justify-center text-cyan-400">                 
+      308 +                  <Calendar size={20} />                      
+      309 +                </div>                                        
+      310 +                <div>                                         
+      311 +                  <p className="text-[10px] text-slate-500 upp
+          +ercase tracking-widest font-black">Эхлэх огноо</p>            
+      312 +                  <p className="font-bold">{new Date(selectedC
+          +ontest.start_time).toLocaleDateString('mn-MN')}</p>           
+      313 +                </div>                                        
+      314                </div>
+      255 -              <div>                                           
+      256 -                <p className="text-[10px] text-slate-500 upper
+          -case tracking-widest font-black">Хугацаа</p>                  
+      257 -                <p className="font-bold">10:00–13:00 (3 цаг)</
+          -p>                                                            
+      315 +              <div className="flex gap-4 items-center">       
+      316 +                <div className="w-10 h-10 rounded-xl glass fle
+          +x items-center justify-center text-purple-400">               
+      317 +                  <Calendar size={20} />                      
+      318 +                </div>                                        
+      319 +                <div>                                         
+      320 +                  <p className="text-[10px] text-slate-500 upp
+          +ercase tracking-widest font-black">Дуусах огноо</p>           
+      321 +                  <p className="font-bold">{new Date(selectedC
+          +ontest.end_time).toLocaleDateString('mn-MN')}</p>             
+      322 +                </div>                                        
+      323                </div>
+      324              </div>
+      260 -            <div className="flex gap-4 items-center">         
+      261 -              <div className="w-10 h-10 rounded-xl glass flex 
+          -items-center justify-center text-cyan-400">                   
+      262 -                <MapPin size={20} />                          
+      263 -              </div>                                          
+      264 -              <div>                                           
+      265 -                <p className="text-[10px] text-slate-500 upper
+          -case tracking-widest font-black">Байршил</p>                  
+      266 -                <p className="font-bold">Улаанбаатар</p>      
+      267 -              </div>                                          
+      268 -            </div>                                            
+      269 -          </div>                                              
+      270 -                                                              
+      271 -          <div className="p-4 bg-yellow-500/5 border border-ye
+          -llow-500/20 rounded-xl">                                      
+      272 -            <p className="text-xs text-yellow-500 font-bold mb
+          --2">Бүртгэлийн хугацаа:</p>                                   
+      273 -            <p className="text-sm text-slate-300">2026.04.10 х
+          -үртэл нээлттэй.</p>                                           
+      274 -          </div>                                              
+      275 -                                                              
+      276 -          <div className="flex justify-between items-center pt
+          --4 border-t border-white/10">                                 
+      277 -            <span className="text-slate-400 font-bold">Оролцох
+          - хураамж:</span>                                              
+      278 -            <Badge color="cyan">20,000 төгрөг</Badge>         
+      279 -          </div>                                              
+      325 +          ) : (                                               
+      326 +            <p className="text-slate-500 text-sm">Олимпиад сон
+          +гоно уу.</p>                                                  
+      327 +          )}                                                  
+      328          </Card>
+      329  
+      330          <Card className="bg-cyan-500/5 border-cyan-500/20">
+     ...
+      335            <ul className="space-y-3 text-xs text-slate-400 list
+           -disc pl-4">
+      336              <li>Нэг оролцогч зөвхөн нэг бүртгэл үүсгэнэ.</li>
+      337              <li>Имэйл хаягаа зөв оруулсан эсэхээ шалгаарай.</l
+           i>
+      338 +            <li>Бүртгэлийн дугаараа хадгалаарай.</li>         
+      339            </ul>
+      340          </Card>
+      341        </div>
+
+● Now let me also update the success screen to show which olympiad they
+  registered for:
+
+● Update(pages/Registration.tsx)
+  ⎿  Added 5 lines, removed 2 lines
+      105              Бүртгэлийн хураангуй
+      106            </h3>
+      107            <div className="grid grid-cols-2 gap-y-4 text-sm">
+      108 +            <span className="text-slate-500 uppercase tracking
+          +-widest text-[10px] font-bold">Олимпиад</span>                
+      109 +            <span className="text-white font-bold">{selectedCo
+          +ntest?.name ?? '—'}</span>                                    
+      110 +                                                              
+      111              <span className="text-slate-500 uppercase tracking
+           -widest text-[10px] font-bold">Овог нэр</span>
+      112              <span className="text-white font-bold">{formData.l
+           astName} {formData.firstName}</span>
+      110 -                                                              
+      113 +                                                              
+      114              <span className="text-slate-500 uppercase tracking
+           -widest text-[10px] font-bold">Ангилал</span>
+      115              <span className="text-white font-bold">{formData.c
+           ategory}</span>
+      113 -                                                              
+      116 +                                                              
+      117              <span className="text-slate-500 uppercase tracking
+           -widest text-[10px] font-bold">Түвшин</span>
+      118              <span className="text-white font-bold">{formData.l
+           evel}</span>
+      119  
+
+● Now let me verify the build works:
+
+● Bash(npx tsc --noEmit 2>&1 | head -30)
+  ⎿  pages/admin/AdminContest.tsx(48,7): error TS2347: Untyped function cal
+     ls may not accept type arguments.
+     pages/admin/AdminContest.tsx(49,7): error TS2347: Untyped function cal
+     … +61 lines (ctrl+o to expand)
+  ⎿  (timeout 30s)
+
+● The server test errors and admin type errors are pre-existing (from previous
+  sessions). Let me verify the frontend build specifically:
+
+● Bash(npx vite build 2>&1 | tail -10)
+  ⎿  vite v6.4.1 building for production...
+
+     /index.css doesn't exist at build time, it will remain unchanged to be
+     … +8 lines (ctrl+o to expand)
+  ⎿  (timeout 1m)
+
+● Frontend builds successfully. Let me verify the final state of
+  Registration.tsx looks clean:
+
+● Read 1 file (ctrl+o to expand)
+
+● Everything looks good. Here's a summary of the changes made in both pages:
+
+  Leaderboard.tsx (from previous session):
+  - Removed "Шилдэг бодлого" (problem stats) sidebar section
+  - Cleaned up unused imports and state
+
+  Registration.tsx (just updated):
+  - Added loading spinner while contests load
+  - Added empty state when no registration-open olympiads exist
+  - Added prominent olympiad selector when multiple contests are available
+  (card-style buttons with name, description, date)
+  - Added olympiad banner inside the form card showing the selected contest name
+   and dates
+  - Sidebar now shows dynamic contest info (name, description, start/end dates)
+  from the selected contest instead of hardcoded dates
+  - Removed hardcoded date/time/location info and unused Clock, MapPin, Badge
+  imports
+  - Success summary now includes which olympiad the user registered for
+  - Submit button disabled when no contest is selected
+
+✻ Crunched for 6m 23s
