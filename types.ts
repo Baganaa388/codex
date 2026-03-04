@@ -17,6 +17,7 @@ export interface ApiLeaderboardEntry {
   category: Category;
   total_points: number;
   penalty_minutes: number;
+  problem_scores: { problem_id: number; points: number }[];
 }
 
 export interface ProblemStat {
@@ -32,7 +33,7 @@ export interface ApiProblemStat {
   avg_points: number;
 }
 
-export type Category = 'Бага' | 'Дунд' | 'Ахлах';
+export type Category = '\u0411\u0430\u0433\u0430' | '\u0414\u0443\u043d\u0434' | '\u0410\u0445\u043b\u0430\u0445';
 
 export interface RegistrationFormData {
   firstName: string;
@@ -43,7 +44,7 @@ export interface RegistrationFormData {
   organization: string;
   teamName: string;
   languages: string[];
-  level: 'Эхлэгч' | 'Дунд' | 'Ахисан';
+  level: '\u042d\u0445\u043b\u044d\u0433\u0447' | '\u0414\u0443\u043d\u0434' | '\u0410\u0445\u0438\u0441\u0430\u043d';
   agreed: boolean;
 }
 

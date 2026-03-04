@@ -89,6 +89,7 @@ export interface LeaderboardEntry {
   readonly category: ContestantCategory;
   readonly total_points: number;
   readonly penalty_minutes: number;
+  readonly problem_scores: readonly { problem_id: number; points: number }[];
 }
 
 export interface ProblemStatistic {

@@ -45,7 +45,22 @@ export function createLeaderboardService(pool: Pool, contestRepo: ContestReposit
       const offset = (page - 1) * limit;
 
       const result = await pool.query<LeaderboardEntry>(
-        `SELECT
+        `WITH best_scores AS (
+           SELECT s.contestant_id, s.problem_id,
+             SUM(best_sub.best_points) as total
+           FROM (
+             SELECT DISTINCT contestant_id, problem_id FROM submissions
+           ) s
+           CROSS JOIN LATERAL (
+             SELECT ss.subtask_id, MAX(ss.points_awarded) as best_points
+             FROM subtask_scores ss
+             JOIN submissions sub ON sub.id = ss.submission_id
+             WHERE sub.contestant_id = s.contestant_id AND sub.problem_id = s.problem_id
+             GROUP BY ss.subtask_id
+           ) best_sub
+           GROUP BY s.contestant_id, s.problem_id
+         )
+         SELECT
            RANK() OVER (ORDER BY lc.total_points DESC, lc.penalty_minutes ASC) as rank,
            c.reg_number,
            c.first_name,
@@ -53,9 +68,20 @@ export function createLeaderboardService(pool: Pool, contestRepo: ContestReposit
            c.organization,
            c.category,
            lc.total_points,
-           lc.penalty_minutes
+           lc.penalty_minutes,
+           COALESCE(ps.problem_scores, '[]'::json) as problem_scores
          FROM leaderboard_cache lc
          JOIN contestants c ON c.id = lc.contestant_id
+         LEFT JOIN LATERAL (
+           SELECT json_agg(
+             json_build_object('problem_id', p.id, 'points', COALESCE(b.total, 0))
+             ORDER BY p.sort_order
+           ) as problem_scores
+           FROM problems p
+           LEFT JOIN best_scores b
+             ON b.problem_id = p.id AND b.contestant_id = c.id
+           WHERE p.contest_id = $1
+         ) ps ON true
          WHERE ${where}
          ORDER BY lc.total_points DESC, lc.penalty_minutes ASC
          LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
