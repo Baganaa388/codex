@@ -3,53 +3,112 @@ import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ChevronRight, Github, Facebook, Instagram, Twitter } from 'lucide-react';
 import { NAV_LINKS } from '../constants';
 
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+const lerpColor = (r1: number, g1: number, b1: number, r2: number, g2: number, b2: number, t: number) =>
+  `${Math.round(lerp(r1, r2, t))}, ${Math.round(lerp(g1, g2, t))}, ${Math.round(lerp(b1, b2, t))}`;
+
 const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
-  const [scrolled, setScrolled] = React.useState(false);
+  const [scrollProgress, setScrollProgress] = React.useState(0);
   const location = useLocation();
 
   React.useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => {
+      const p = Math.min(1, Math.max(0, window.scrollY / window.innerHeight));
+      setScrollProgress(p);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'opacity-100' : 'opacity-95'}`}>
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="relative flex items-center justify-center py-4">
-          <div className="absolute left-0" />
+  const isHome = location.pathname === '/';
+  const t = isHome ? scrollProgress : 1;
+  const bgAlpha = lerp(0.1, 0.85, t);
+  const borderAlpha = lerp(0.15, 0.35, t);
+  const blurVal = lerp(12, 20, t);
+  const shadowAlpha = lerp(0, 0.08, t);
+  const textRgb = lerpColor(255, 255, 255, 17, 24, 39, t);
+  const mutedRgb = lerpColor(255, 255, 255, 107, 114, 128, t);
+  const mutedAlpha = lerp(0.7, 1, t);
+  const activeBgAlpha = lerp(0.15, 0.06, t);
 
-          <div className="hidden md:flex items-center gap-8">
-            {NAV_LINKS.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                className={`text-xs font-semibold uppercase tracking-[0.2em] transition-colors ${location.pathname === link.path ? 'text-[#111827]' : 'text-[#6B7280] hover:text-[#111827]'}`}
-              >
-                {link.name}
-              </Link>
-            ))}
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50">
+      <div className="max-w-6xl mx-auto px-4 pt-4">
+        <div
+          className="flex items-center justify-between rounded-2xl px-6 py-4"
+          style={{
+            background: `rgba(255, 255, 255, ${bgAlpha})`,
+            border: `1px solid rgba(255, 255, 255, ${borderAlpha})`,
+            backdropFilter: `blur(${blurVal}px)`,
+            WebkitBackdropFilter: `blur(${blurVal}px)`,
+            boxShadow: `0 10px 30px rgba(0, 0, 0, ${shadowAlpha})`,
+          }}
+        >
+          <Link to="/" className="flex items-center gap-3 group">
+            <img
+              src="/logo/codex logo.png"
+              alt="CodeX"
+              className="w-10 h-10 object-contain rounded-lg transition-transform group-hover:scale-105"
+            />
+            <span className="text-xl font-extrabold tracking-tight" style={{ color: `rgb(${textRgb})` }}>
+              Code<span className="text-[#EDAF00]">X</span>
+            </span>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-1">
+            {NAV_LINKS.map((link) => {
+              const isActive = location.pathname === link.path;
+              return (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className="relative px-4 py-2.5 rounded-xl text-[13px] font-semibold uppercase tracking-[0.12em]"
+                  style={{
+                    color: isActive ? `rgb(${textRgb})` : `rgba(${mutedRgb}, ${mutedAlpha})`,
+                    background: isActive ? `rgba(${textRgb}, ${activeBgAlpha})` : 'transparent',
+                  }}
+                >
+                  {link.name}
+                </Link>
+              );
+            })}
           </div>
 
-          <button className="md:hidden text-[#111827] absolute right-0" onClick={() => setIsOpen(!isOpen)}>
-            {isOpen ? <X size={22} /> : <Menu size={22} />}
+          <button
+            className="md:hidden p-1.5 rounded-xl"
+            style={{ color: `rgb(${textRgb})` }}
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
       </div>
 
       {isOpen && (
-        <div className="md:hidden glass mx-6 mt-3 rounded-2xl border border-slate-900/10 px-4 py-4 space-y-2">
-          {NAV_LINKS.map((link) => (
-            <Link
-              key={link.path}
-              to={link.path}
-              className="block text-base font-medium text-slate-200 py-2"
-              onClick={() => setIsOpen(false)}
-            >
-              {link.name}
-            </Link>
-          ))}
+        <div className="md:hidden mx-4 mt-2">
+          <div
+            className="rounded-2xl border border-slate-900/[0.06] px-3 py-2 bg-white/90 shadow-lg shadow-black/[0.06]"
+            style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
+          >
+            {NAV_LINKS.map((link) => {
+              const isActive = location.pathname === link.path;
+              return (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  className={`block rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${
+                    isActive
+                      ? 'text-[#111827] bg-[#111827]/[0.06]'
+                      : 'text-[#6B7280] hover:text-[#111827] hover:bg-[#111827]/[0.04]'
+                  }`}
+                  onClick={() => setIsOpen(false)}
+                >
+                  {link.name}
+                </Link>
+              );
+            })}
+          </div>
         </div>
       )}
     </nav>

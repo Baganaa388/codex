@@ -3,12 +3,12 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "tsc && cp -r src/db/migrations dist/db/migrations",
     "start": "node dist/index.js",
-    "migrate": "tsx src/db/migrate.ts",
+    "migrate": "tsx --env-file=.env src/db/migrate.ts",
     "migrate:prod": "node dist/db/migrate.js",
-    "seed": "tsx src/db/seed.ts",
+    "seed": "tsx --env-file=.env src/db/seed.ts",
     "seed:prod": "node dist/db/seed.js",
     "test": "jest --forceExit --detectOpenHandles",
     "test:coverage": "jest --coverage --forceExit --detectOpenHandles"

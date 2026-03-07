@@ -87,14 +87,38 @@ export function createContestantRepository(pool: Pool) {
       phone: string;
       organization: string;
       category: string;
+      payment_status: string;
     }): Promise<Contestant> {
       const result = await pool.query<Contestant>(
-        `INSERT INTO contestants (contest_id, reg_number, first_name, last_name, email, phone, organization, category)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `INSERT INTO contestants (contest_id, reg_number, first_name, last_name, email, phone, organization, category, payment_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
-        [data.contest_id, data.reg_number, data.first_name, data.last_name, data.email, data.phone, data.organization, data.category],
+        [data.contest_id, data.reg_number, data.first_name, data.last_name, data.email, data.phone, data.organization, data.category, data.payment_status],
       );
       return result.rows[0];
+    },
+
+    async updatePayment(id: number, data: {
+      payment_status: string;
+      qpay_invoice_id?: string;
+      paid_at?: Date;
+    }): Promise<Contestant | null> {
+      const sets: string[] = ['payment_status = $2'];
+      const params: unknown[] = [id, data.payment_status];
+      let idx = 3;
+      if (data.qpay_invoice_id !== undefined) {
+        sets.push(`qpay_invoice_id = $${idx++}`);
+        params.push(data.qpay_invoice_id);
+      }
+      if (data.paid_at !== undefined) {
+        sets.push(`paid_at = $${idx++}`);
+        params.push(data.paid_at);
+      }
+      const result = await pool.query<Contestant>(
+        `UPDATE contestants SET ${sets.join(', ')} WHERE id = $1 RETURNING *`,
+        params,
+      );
+      return result.rows[0] ?? null;
     },
   });
 }

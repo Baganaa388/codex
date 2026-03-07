@@ -47,7 +47,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
           <p className="text-slate-500 mt-2">CodeX Olympiad удирдлагын самбар</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="glass border border-white/10 rounded-2xl p-8 space-y-6">
+        <form onSubmit={handleSubmit} className="bg-white/[0.04] border border-white/10 rounded-2xl p-8 space-y-6">
           {error && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
               <AlertCircle size={16} />

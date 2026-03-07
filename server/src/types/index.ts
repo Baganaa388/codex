@@ -8,6 +8,12 @@ export interface Contest {
   readonly start_time: Date;
   readonly end_time: Date;
   readonly status: ContestStatus;
+  readonly location_name: string;
+  readonly location_address: string;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
+  readonly timeline: readonly { title: string; desc: string; date: string }[];
+  readonly registration_fee: number;
   readonly created_at: Date;
   readonly updated_at: Date;
 }
@@ -30,6 +36,8 @@ export interface Subtask {
   readonly sort_order: number;
 }
 
+export type PaymentStatus = 'pending' | 'paid' | 'free';
+
 export interface Contestant {
   readonly id: number;
   readonly contest_id: number;
@@ -40,6 +48,9 @@ export interface Contestant {
   readonly phone: string;
   readonly organization: string;
   readonly category: ContestantCategory;
+  readonly payment_status: PaymentStatus;
+  readonly qpay_invoice_id: string | null;
+  readonly paid_at: Date | null;
   readonly created_at: Date;
 }
 

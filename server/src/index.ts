@@ -19,6 +19,7 @@ import { createProblemService } from './services/problem.service';
 import { createContestantService } from './services/contestant.service';
 import { createScoringService } from './services/scoring.service';
 import { createLeaderboardService } from './services/leaderboard.service';
+import { createQPayService } from './services/qpay.service';
 
 import { createAuthController } from './controllers/auth.controller';
 import { createContestController } from './controllers/contest.controller';
@@ -26,6 +27,7 @@ import { createProblemController } from './controllers/problem.controller';
 import { createContestantController } from './controllers/contestant.controller';
 import { createSubmissionController } from './controllers/submission.controller';
 import { createLeaderboardController } from './controllers/leaderboard.controller';
+import { createPaymentController } from './controllers/payment.controller';
 
 import { createAuthRoutes } from './routes/auth.routes';
 import { createContestRoutes } from './routes/contest.routes';
@@ -33,6 +35,7 @@ import { createProblemRoutes } from './routes/problem.routes';
 import { createContestantRoutes } from './routes/contestant.routes';
 import { createSubmissionRoutes } from './routes/submission.routes';
 import { createLeaderboardRoutes } from './routes/leaderboard.routes';
+import { createPaymentRoutes } from './routes/payment.routes';
 
 export function createApp() {
   const app = express();
@@ -56,6 +59,7 @@ export function createApp() {
   const contestantService = createContestantService(contestantRepo, contestRepo);
   const scoringService = createScoringService(pool, submissionRepo, problemRepo, contestantRepo);
   const leaderboardService = createLeaderboardService(pool, contestRepo);
+  const qpayService = createQPayService();
 
   // Controllers
   const authController = createAuthController(authService);
@@ -64,6 +68,7 @@ export function createApp() {
   const contestantController = createContestantController(contestantService);
   const submissionController = createSubmissionController(scoringService);
   const leaderboardController = createLeaderboardController(leaderboardService, scoringService);
+  const paymentController = createPaymentController(qpayService, contestantRepo, contestRepo);
 
   // Health check
   app.get('/api/health', (_req, res) => {
@@ -77,6 +82,7 @@ export function createApp() {
   app.use('/api/contestants', createContestantRoutes(contestantController));
   app.use('/api/submissions', createSubmissionRoutes(submissionController));
   app.use('/api/leaderboard', createLeaderboardRoutes(leaderboardController));
+  app.use('/api/payment', createPaymentRoutes(paymentController));
 
   // Serve frontend in production
   if (config.nodeEnv === 'production') {

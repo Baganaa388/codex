@@ -15,6 +15,10 @@ export function createContestantRoutes(contestantController: ContestantControlle
     contestantController.listByContest(req, res, next);
   });
 
+  router.get('/export', authMiddleware, (req, res, next) => {
+    contestantController.exportCsv(req, res, next);
+  });
+
   router.get('/lookup/:regNumber', authMiddleware, (req, res, next) => {
     contestantController.lookupByRegNumber(req, res, next);
   });

@@ -18,6 +18,7 @@ export const AdminDashboard: React.FC<Props> = ({ authFetch, onSelectContest, on
     description: '',
     start_time: '',
     end_time: '',
+    registration_fee: 0,
   });
 
   const loadContests = async () => {
@@ -36,15 +37,17 @@ export const AdminDashboard: React.FC<Props> = ({ authFetch, onSelectContest, on
     const data = await authFetch<Contest>('/api/contests', {
       method: 'POST',
       body: JSON.stringify({
-        ...form,
+        name: form.name,
+        description: form.description,
         start_time: new Date(form.start_time).toISOString(),
         end_time: new Date(form.end_time).toISOString(),
         status: 'registration',
+        registration_fee: form.registration_fee,
       }),
     });
     if (data.success) {
       setShowCreate(false);
-      setForm({ name: '', description: '', start_time: '', end_time: '' });
+      setForm({ name: '', description: '', start_time: '', end_time: '', registration_fee: 0 });
       await loadContests();
     }
     setCreating(false);
@@ -90,7 +93,7 @@ export const AdminDashboard: React.FC<Props> = ({ authFetch, onSelectContest, on
         </div>
 
         {showCreate && (
-          <form onSubmit={handleCreate} className="glass border border-cyan-500/30 rounded-2xl p-6 space-y-4">
+          <form onSubmit={handleCreate} className="bg-white/[0.04] border border-cyan-500/30 rounded-2xl p-6 space-y-4">
             <h3 className="font-bold text-cyan-400">Шинэ тэмцээн үүсгэх</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-1 md:col-span-2">
@@ -112,6 +115,11 @@ export const AdminDashboard: React.FC<Props> = ({ authFetch, onSelectContest, on
                 <label className="text-xs font-bold text-slate-500">Дуусах цаг</label>
                 <input required type="datetime-local" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500 text-sm" />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500">Бүртгэлийн хураамж (₮)</label>
+                <input type="number" min={0} step={1000} value={form.registration_fee} onChange={e => setForm({ ...form, registration_fee: Number(e.target.value) })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500 text-sm" placeholder="0 = үнэгүй" />
               </div>
             </div>
             <div className="flex gap-3">
@@ -138,7 +146,7 @@ export const AdminDashboard: React.FC<Props> = ({ authFetch, onSelectContest, on
               <button
                 key={contest.id}
                 onClick={() => onSelectContest(contest.id)}
-                className="w-full glass border border-white/10 hover:border-cyan-500/50 rounded-2xl p-5 flex items-center justify-between transition-all text-left group"
+                className="w-full bg-white/[0.04] border border-white/10 hover:border-cyan-500/50 rounded-2xl p-5 flex items-center justify-between transition-all text-left group"
               >
                 <div className="space-y-1">
                   <div className="flex items-center gap-3">

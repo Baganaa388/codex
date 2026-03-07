@@ -33,11 +33,14 @@ export function createContestantService(
       }
 
       const sequence = await contestantRepo.getNextSequence(data.contest_id);
-      const regNumber = generateRegNumber(sequence);
+      const regNumber = generateRegNumber(sequence, data.contest_id);
+
+      const paymentStatus = contest.registration_fee > 0 ? 'pending' : 'free';
 
       return contestantRepo.create({
         ...data,
         reg_number: regNumber,
+        payment_status: paymentStatus,
       });
     },
 

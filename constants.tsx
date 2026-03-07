@@ -43,9 +43,8 @@ export const FAQ_DATA = [
   },
 ];
 
-export const TIMELINE = [
+export const DEFAULT_TIMELINE = [
   { title: "Бүртгэл", desc: "Онлайнаар бүртгүүлэх", date: "03/01 - 04/10", active: true },
-  { title: "Шалгаруулалт", desc: "Эхний шатны бодолт", date: "04/12", active: false },
   { title: "Финал", desc: "Улаанбаатар хотод", date: "04/15", active: false },
   { title: "Шагнал", desc: "Ялагчдыг тодруулах", date: "04/15", active: false },
 ];

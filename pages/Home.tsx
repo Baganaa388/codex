@@ -1,9 +1,45 @@
 ﻿
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronRight, ArrowRight, Zap, Award, Globe, Shield, Code2, PlayCircle } from 'lucide-react';
 import { STATS, FAQ_DATA } from '../constants';
 import { Card, SectionHeading, Button, Badge } from '../components/UI';
+
+const useCountUp = (end: number, duration = 2000) => {
+  const [count, setCount] = useState(0);
+  const [started, setStarted] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setStarted(true); },
+      { threshold: 0.3 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!started) return;
+    const steps = 60;
+    const increment = end / steps;
+    let current = 0;
+    const interval = window.setInterval(() => {
+      current += increment;
+      if (current >= end) {
+        setCount(end);
+        window.clearInterval(interval);
+      } else {
+        setCount(Math.floor(current));
+      }
+    }, duration / steps);
+    return () => window.clearInterval(interval);
+  }, [started, end, duration]);
+
+  return { count, ref };
+};
 
 const HERO_SLIDES = [
   { src: '/logo/slides/hero-1.png', alt: 'Programming competition scene' },
@@ -22,6 +58,113 @@ const HERO_COPY = {
   stat2: '\u0431\u043e\u0434\u043b\u043e\u0433\u043e',
   stat3: '\u0430\u0439\u043c\u0430\u0433',
 };
+
+const SPONSORS = [
+  {
+    logo: "/logo/teee.png",
+    name: "TEEE",
+    desc: "The Essential Engineering Education",
+    detail: "TEEE нь инженерчлэлийн боловсролын чанарыг дээшлүүлэх зорилготой байгууллага юм. Програмчлал, робот техник, хиймэл оюун ухааны чиглэлээр сургалт зохион байгуулдаг. 2020 оноос хойш 5,000+ суралцагчдад үйлчилсэн.",
+    website: "https://teee.mn",
+    founded: "2020",
+    focus: "Инженерчлэлийн боловсрол",
+  },
+  {
+    logo: "/logo/teee.png",
+    name: "Mobicom",
+    desc: "Харилцаа холбоо",
+    detail: "Мобиком корпораци нь Монгол Улсын тэргүүлэх харилцаа холбооны компани бөгөөд технологийн боловсролыг дэмжин ажилладаг. CodeX олимпиадын алтан ивээн тэтгэгч.",
+    website: "https://mobicom.mn",
+    founded: "1996",
+    focus: "Харилцаа холбоо, технологи",
+  },
+];
+
+type Sponsor = typeof SPONSORS[number];
+
+const SponsorCard: React.FC<{ sponsor: Sponsor }> = ({ sponsor }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div
+      onClick={() => setExpanded(!expanded)}
+      className="rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8] p-8 shadow-[0_18px_40px_rgba(15,23,42,0.12)] cursor-pointer transition-all duration-300 hover:shadow-[0_24px_50px_rgba(15,23,42,0.16)] hover:border-[#EDAF00]/30"
+    >
+      <div className="flex items-center justify-between">
+        <div className="h-16 w-16 rounded-2xl bg-[#EDAF00] flex items-center justify-center">
+          <img src={sponsor.logo} alt={`${sponsor.name} logo`} className="h-8 w-8 object-contain" />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-white px-4 py-1 text-xs font-bold text-[#866300]">
+            АЛТ
+          </span>
+          <ChevronRight
+            size={18}
+            className={`text-slate-400 transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`}
+          />
+        </div>
+      </div>
+      <h4 className="mt-6 text-2xl font-bold text-slate-900">{sponsor.name}</h4>
+      <p className="mt-2 text-slate-600">{sponsor.desc}</p>
+
+      <div
+        className="overflow-hidden transition-all duration-400 ease-in-out"
+        style={{ maxHeight: expanded ? '300px' : '0px', opacity: expanded ? 1 : 0 }}
+      >
+        <div className="mt-4 pt-4 border-t border-[#E5E7EB] space-y-3">
+          <p className="text-sm text-slate-600 leading-relaxed">{sponsor.detail}</p>
+          <div className="flex flex-wrap gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 border border-[#E5E7EB]">
+              Үүсгэсэн: {sponsor.founded}
+            </span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 border border-[#E5E7EB]">
+              {sponsor.focus}
+            </span>
+          </div>
+          <a
+            href={sponsor.website}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#866300] hover:text-[#EDAF00] transition-colors"
+          >
+            Вэбсайт үзэх <ArrowRight size={14} />
+          </a>
+        </div>
+      </div>
+
+      {!expanded && <div className="mt-6 h-px w-full bg-[#E5E7EB]" />}
+    </div>
+  );
+};
+
+const HERO_STATS_DATA = [
+  { end: 500, suffix: '+', label: HERO_COPY.stat1 },
+  { end: 50, suffix: '+', label: HERO_COPY.stat2 },
+  { end: 12, suffix: '', label: HERO_COPY.stat3 },
+];
+
+const CountUpNumber: React.FC<{ end: number; suffix: string }> = ({ end, suffix }) => {
+  const { count, ref } = useCountUp(end);
+  return (
+    <div ref={ref} className="text-3xl font-bold text-white md:text-4xl tabular-nums">
+      {count}{suffix}
+    </div>
+  );
+};
+
+const HeroStats = () => (
+  <div className="mt-12 grid grid-cols-3 gap-8 md:gap-16">
+    {HERO_STATS_DATA.map((stat) => (
+      <div key={stat.label} className="text-center">
+        <CountUpNumber end={stat.end} suffix={stat.suffix} />
+        <div className="mt-1 text-xs tracking-wider text-slate-400 uppercase">
+          {stat.label}
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 export const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -56,69 +199,59 @@ export const Home = () => {
             style={{ opacity: index === currentSlide ? 1 : 0 }}
           >
             <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${slide.src})` }}
+              className="absolute inset-0 bg-cover bg-center scale-105"
+              style={{
+                backgroundImage: `url(${slide.src})`,
+                filter: 'brightness(0.45) saturate(1.2)',
+              }}
               aria-hidden
             />
           </div>
         ))}
 
-        <div className="absolute inset-0 bg-white/20" />
-        <div className="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-white/30" />
-        <div className="absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-white/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a]/50 via-[#0f172a]/30 to-[#0f172a]/60" />
+        <div
+          className="absolute inset-0 opacity-40"
+          style={{
+            background: 'linear-gradient(120deg, #EDAF00, #2F55BE, #0f172a, #EDAF00)',
+            backgroundSize: '300% 300%',
+            animation: 'heroGradient 12s ease infinite',
+          }}
+        />
 
         <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#EDAF00]/40 bg-[#EDAF00]/15 px-5 py-2 backdrop-blur-sm">
+          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-[#EDAF00]/50 bg-[#EDAF00]/20 px-5 py-2 backdrop-blur-md">
             <span className="h-2 w-2 rounded-full bg-[#EDAF00] animate-pulse" />
-            <span className="text-xs font-semibold tracking-widest text-[#866300] uppercase">
+            <span className="text-xs font-semibold tracking-widest text-[#F5D372] uppercase">
               {HERO_COPY.pill}
             </span>
           </div>
 
-          <h1 className="max-w-5xl text-balance text-5xl font-extrabold leading-tight tracking-tight text-slate-900 md:text-7xl lg:text-8xl">
+          <h1 className="max-w-5xl text-balance text-5xl font-extrabold leading-tight tracking-tight text-white md:text-7xl lg:text-8xl">
             {HERO_COPY.titleA} <span className="text-[#EDAF00]">{HERO_COPY.titleB}</span>
           </h1>
 
-          <p className="mt-8 max-w-2xl text-pretty text-lg leading-relaxed text-slate-600 md:text-xl">
+          <p className="mt-8 max-w-2xl text-pretty text-lg leading-relaxed text-slate-300 md:text-xl">
             {HERO_COPY.sub}
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row">
             <Link
               to="/registration"
-              className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-[#F5D372] via-[#EDAF00] to-[#B98000] px-8 py-3.5 text-sm font-semibold text-[#111827] transition-all hover:brightness-110"
+              className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-[#F5D372] via-[#EDAF00] to-[#B98000] px-8 py-3.5 text-sm font-semibold text-[#111827] shadow-lg shadow-[#EDAF00]/25 transition-all hover:brightness-110 hover:shadow-[#EDAF00]/40"
             >
               {HERO_COPY.cta1}
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
             <Link
               to="/leaderboard"
-              className="flex items-center gap-2 rounded-full border border-[#E5E7EB] px-8 py-3.5 text-sm font-semibold text-slate-700 transition-all hover:border-[#EDAF00]/60 hover:bg-[#F7F7F8]"
+              className="flex items-center gap-2 rounded-full border border-white/25 bg-white/10 backdrop-blur-sm px-8 py-3.5 text-sm font-semibold text-white transition-all hover:border-white/40 hover:bg-white/20"
             >
               {HERO_COPY.cta2}
             </Link>
           </div>
 
-          <div className="mt-12 grid grid-cols-3 gap-8 md:gap-16">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-slate-900 md:text-4xl">{"500+"}</div>
-              <div className="mt-1 text-xs tracking-wider text-slate-500 uppercase">
-                {HERO_COPY.stat1}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-slate-900 md:text-4xl">{"50+"}</div>
-              <div className="mt-1 text-xs tracking-wider text-slate-500 uppercase">
-                {HERO_COPY.stat2}
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-slate-900 md:text-4xl">{"12"}</div>
-              <div className="mt-1 text-xs tracking-wider text-slate-500 uppercase">
-                {HERO_COPY.stat3}
-              </div>
-            </div>
-          </div>
+          <HeroStats />
         </div>
 
         <div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 gap-2">
@@ -138,10 +271,10 @@ export const Home = () => {
 
         <div className="absolute bottom-8 right-8 z-10 hidden md:block">
           <div className="flex flex-col items-center gap-2">
-            <span className="text-[10px] tracking-widest text-slate-500 uppercase [writing-mode:vertical-lr]">
+            <span className="text-[10px] tracking-widest text-white/50 uppercase [writing-mode:vertical-lr]">
               {"Scroll"}
             </span>
-            <div className="h-12 w-px bg-gradient-to-b from-slate-400/60 to-transparent" />
+            <div className="h-12 w-px bg-gradient-to-b from-white/40 to-transparent" />
           </div>
         </div>
       </section>
@@ -223,35 +356,9 @@ export const Home = () => {
             Алтан ивээн тэтгэгч
           </div>
 
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
-            {[
-              {
-                logo: "/logo/teee.png",
-                name: "TEEE",
-                desc: "The Essential Engineering Education",
-              },
-              {
-                logo: "/logo/teee.png",
-                name: "Mobicom",
-                desc: "Харилцаа холбоо",
-              },
-            ].map((s) => (
-              <div
-                key={s.name}
-                className="rounded-2xl border border-[#E5E7EB] bg-[#F7F7F8] p-8 shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="h-16 w-16 rounded-2xl bg-[#EDAF00] flex items-center justify-center">
-                    <img src={s.logo} alt={`${s.name} logo`} className="h-8 w-8 object-contain" />
-                  </div>
-                  <span className="rounded-full bg-white px-4 py-1 text-xs font-bold text-[#866300]">
-                    АЛТ
-                  </span>
-                </div>
-                <h4 className="mt-6 text-2xl font-bold text-slate-900">{s.name}</h4>
-                <p className="mt-2 text-slate-600">{s.desc}</p>
-                <div className="mt-6 h-px w-full bg-[#E5E7EB]" />
-              </div>
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+            {SPONSORS.map((s) => (
+              <SponsorCard key={s.name} sponsor={s} />
             ))}
           </div>
         </div>

@@ -1,8 +1,16 @@
-﻿import React, { useMemo, useState } from 'react';
-import { AlertCircle, CalendarDays } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AlertCircle, CalendarDays, CheckCircle, Loader2 } from 'lucide-react';
 import { Button, Card, SectionHeading } from '../components/UI';
-import { TIMELINE } from '../constants';
+import { DEFAULT_TIMELINE } from '../constants';
 import { Contest } from '../types';
+
+const formatDate = (d: string) => {
+  try { return new Date(d).toLocaleDateString('mn-MN', { year: 'numeric', month: 'long', day: 'numeric' }); }
+  catch { return d; }
+};
+
+const formatAmount = (n: number) =>
+  new Intl.NumberFormat('mn-MN').format(n) + '₮';
 
 interface FormData {
   firstName: string;
@@ -16,6 +24,22 @@ interface FormData {
   languages: string[];
   agreement: boolean;
 }
+
+interface QPayInvoice {
+  invoice_id: string;
+  qr_image: string;
+  qr_text: string;
+  urls: { name: string; description: string; logo: string; link: string }[];
+  amount: number;
+}
+
+interface RegisteredContestant {
+  id: number;
+  reg_number: string;
+  payment_status: string;
+}
+
+type Step = 'form' | 'payment' | 'success';
 
 export const Registration: React.FC = () => {
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
@@ -32,27 +56,42 @@ export const Registration: React.FC = () => {
     agreement: false,
   });
   const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+  const [step, setStep] = useState<Step>('form');
   const [error, setError] = useState<string | null>(null);
+  const [contests, setContests] = useState<Contest[]>([]);
+  const [contestant, setContestant] = useState<RegisteredContestant | null>(null);
+  const [invoice, setInvoice] = useState<QPayInvoice | null>(null);
+  const [checking, setChecking] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const contests: Contest[] = useMemo(
-    () => [
-      {
-        id: 4,
-        name: 'CodeX[4]',
-        description: 'Програмчлалын олимпиад',
-        start_time: '2026-02-28',
-        end_time: '2026-03-17',
-        status: 'registration',
-      },
-    ],
-    []
-  );
+  useEffect(() => {
+    fetch('/api/contests')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.data)) {
+          setContests(data.data);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
 
   const activeContest = useMemo(
     () => selectedContest || contests.find((c) => c.status === 'registration') || null,
     [selectedContest, contests]
   );
+
+  const timeline = useMemo(() => {
+    const t = (activeContest as any)?.timeline;
+    return Array.isArray(t) && t.length > 0 ? t : DEFAULT_TIMELINE;
+  }, [activeContest]);
+
+  const registrationFee = activeContest?.registration_fee ?? 0;
 
   const handleChange = (field: keyof FormData, value: string | boolean | string[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -67,6 +106,25 @@ export const Registration: React.FC = () => {
       };
     });
   };
+
+  const startPaymentPolling = useCallback((contestantId: number) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    pollRef.current = setInterval(async () => {
+      try {
+        setChecking(true);
+        const res = await fetch(`/api/payment/${contestantId}/check`);
+        const data = await res.json();
+        if (data.success && data.data?.paid) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          setStep('success');
+        }
+      } catch {
+        // keep polling
+      } finally {
+        setChecking(false);
+      }
+    }, 5000);
+  }, []);
 
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -84,36 +142,173 @@ export const Registration: React.FC = () => {
 
     try {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      setSubmitted(true);
-    } catch (err) {
+
+      const regRes = await fetch('/api/contestants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contest_id: activeContest.id,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          organization: formData.school,
+          category: formData.category,
+        }),
+      });
+      const regData = await regRes.json();
+
+      if (!regData.success) {
+        setError(regData.error ?? 'Бүртгэл амжилтгүй боллоо.');
+        return;
+      }
+
+      const registered = regData.data as RegisteredContestant;
+      setContestant(registered);
+
+      if (registrationFee > 0 && registered.payment_status !== 'free') {
+        const invoiceRes = await fetch(`/api/payment/${registered.id}/invoice`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const invoiceData = await invoiceRes.json();
+
+        if (!invoiceData.success) {
+          setError(invoiceData.error ?? 'QPay нэхэмжлэх үүсгэхэд алдаа гарлаа.');
+          return;
+        }
+
+        setInvoice(invoiceData.data as QPayInvoice);
+        setStep('payment');
+        startPaymentPolling(registered.id);
+      } else {
+        setStep('success');
+      }
+    } catch {
       setError('Бүртгэл амжилтгүй боллоо.');
     } finally {
       setLoading(false);
     }
   };
 
-  if (submitted && activeContest) {
+  const checkPaymentManually = async () => {
+    if (!contestant) return;
+    setChecking(true);
+    try {
+      const res = await fetch(`/api/payment/${contestant.id}/check`);
+      const data = await res.json();
+      if (data.success && data.data?.paid) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        setStep('success');
+      } else {
+        setError('Төлбөр хараахан төлөгдөөгүй байна. Дахин оролдоно уу.');
+        setTimeout(() => setError(null), 3000);
+      }
+    } catch {
+      setError('Шалгахад алдаа гарлаа.');
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  if (step === 'success' && activeContest) {
     return (
       <section className="section">
         <div className="container">
           <Card className="max-w-2xl mx-auto text-center">
-            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-[#EDAF00]/15 text-[#866300]">
-              <AlertCircle className="h-7 w-7" />
+            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-green-500/15 text-green-500">
+              <CheckCircle className="h-7 w-7" />
             </div>
             <h1 className="text-3xl font-semibold text-[var(--text-primary)]">Бүртгэл амжилттай</h1>
             <p className="mt-3 text-[var(--text-muted)]">
-              Таны мэдээлэл хүлээн авлаа. Бүртгэлийн дугаар болон нэмэлт мэдээллийг имэйлээр илгээнэ.
+              Таны мэдээлэл хүлээн авлаа.
+              {registrationFee > 0 && ' Төлбөр амжилттай баталгаажлаа.'}
             </p>
+            {contestant && (
+              <div className="mt-4 inline-flex items-center rounded-xl border border-[#EDAF00]/30 bg-[#EDAF00]/10 px-5 py-3">
+                <div className="text-left">
+                  <div className="text-xs text-[var(--text-muted)]">Бүртгэлийн дугаар</div>
+                  <div className="text-2xl font-black text-[#EDAF00]">{contestant.reg_number}</div>
+                </div>
+              </div>
+            )}
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
               <span className="inline-flex items-center rounded-full border border-[#EDAF00]/30 bg-[#EDAF00]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#866300]">
                 {activeContest.name}
               </span>
-              <span className="text-sm text-[var(--text-muted)]">{activeContest.start_time} — {activeContest.end_time}</span>
+              <span className="text-sm text-[var(--text-muted)]">{formatDate(activeContest.start_time)} — {formatDate(activeContest.end_time)}</span>
             </div>
             <div className="mt-8">
-              <Button as="a" href="/" variant="primary">Нүүр хуудас руу буцах</Button>
+              <a href="/" className="inline-block px-7 py-3 rounded-2xl font-semibold bg-gradient-to-r from-[#F5D372] via-[#EDAF00] to-[#B98000] text-[#111827] shadow-lg hover:shadow-[0_12px_30px_rgba(237,175,0,0.28)] transition-all transform hover:-translate-y-0.5">Нүүр хуудас руу буцах</a>
             </div>
+          </Card>
+        </div>
+      </section>
+    );
+  }
+
+  if (step === 'payment' && invoice && activeContest) {
+    return (
+      <section className="section">
+        <div className="container">
+          <Card className="max-w-lg mx-auto text-center">
+            <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Төлбөр төлөх</h1>
+            <p className="mt-2 text-[var(--text-muted)]">
+              {activeContest.name} бүртгэлийн төлбөр: <strong className="text-[#EDAF00]">{formatAmount(invoice.amount)}</strong>
+            </p>
+
+            {contestant && (
+              <div className="mt-3 text-sm text-[var(--text-muted)]">
+                Бүртгэлийн дугаар: <strong>{contestant.reg_number}</strong>
+              </div>
+            )}
+
+            <div className="mt-6 rounded-2xl bg-white p-4 inline-block">
+              <img
+                src={`data:image/png;base64,${invoice.qr_image}`}
+                alt="QPay QR Code"
+                className="w-64 h-64 mx-auto"
+              />
+            </div>
+
+            <p className="mt-4 text-sm text-[var(--text-muted)]">
+              Банкны аппаараа QR кодыг уншуулна уу
+            </p>
+
+            {invoice.urls.length > 0 && (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                {invoice.urls.map((u) => (
+                  <a
+                    key={u.name}
+                    href={u.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs hover:border-[#EDAF00]/50 transition-colors"
+                  >
+                    {u.logo && <img src={u.logo} alt={u.name} className="w-5 h-5 rounded" />}
+                    {u.description || u.name}
+                  </a>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-col items-center gap-3">
+              <Button variant="primary" onClick={checkPaymentManually} disabled={checking}>
+                {checking ? (
+                  <><Loader2 className="h-4 w-4 animate-spin inline mr-2" />Шалгаж байна...</>
+                ) : (
+                  'Төлбөр шалгах'
+                )}
+              </Button>
+              <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Автоматаар шалгаж байна...
+              </div>
+            </div>
+
+            {error && (
+              <div className="alert mt-4">{error}</div>
+            )}
           </Card>
         </div>
       </section>
@@ -123,12 +318,12 @@ export const Registration: React.FC = () => {
   return (
     <section className="section pt-10">
       <div className="container">
-        <SectionHeading title="Явц ба Хуваарь" subtitle="2026 оны олимпиадын бүртгэл, шалгаруулалт, финалын гол огноонууд." centered />
+        <SectionHeading title="Явц ба Хуваарь" subtitle="2026 оны олимпиадын бүртгэл, финал, шагналын гол огноонууд." centered />
 
         <div className="timeline-strip">
           <div className="timeline-line" />
           <div className="timeline-grid">
-            {TIMELINE.map((item, index) => (
+            {timeline.map((item, index) => (
               <article key={item.title} className="timeline-card">
                 <div className="timeline-card-top">
                   <span className="timeline-date">{item.date}</span>
@@ -164,12 +359,18 @@ export const Registration: React.FC = () => {
               <div className="flex flex-wrap gap-4">
                 <div className="info-pill">
                   <span>Эхлэх огноо</span>
-                  <strong>{activeContest.start_time}</strong>
+                  <strong>{formatDate(activeContest.start_time)}</strong>
                 </div>
                 <div className="info-pill">
                   <span>Дуусах огноо</span>
-                  <strong>{activeContest.end_time}</strong>
+                  <strong>{formatDate(activeContest.end_time)}</strong>
                 </div>
+                {registrationFee > 0 && (
+                  <div className="info-pill">
+                    <span>Бүртгэлийн хураамж</span>
+                    <strong className="text-[#EDAF00]">{formatAmount(registrationFee)}</strong>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -301,9 +502,11 @@ export const Registration: React.FC = () => {
 
                 <div className="flex flex-wrap items-center gap-4">
                   <Button type="submit" variant="primary" disabled={loading}>
-                    {loading ? 'Илгээж байна...' : 'Бүртгэл илгээх'}
+                    {loading ? 'Илгээж байна...' : registrationFee > 0 ? `Бүртгүүлэх (${formatAmount(registrationFee)})` : 'Бүртгэл илгээх'}
                   </Button>
-                  <span className="text-sm text-[var(--text-muted)]">Бүртгэлийн дугаар 24 цагийн дотор илгээгдэнэ.</span>
+                  {registrationFee > 0 && (
+                    <span className="text-sm text-[var(--text-muted)]">Бүртгүүлсний дараа QPay-ээр төлбөр төлнө.</span>
+                  )}
                 </div>
               </form>
             </Card>
@@ -316,6 +519,9 @@ export const Registration: React.FC = () => {
                 <li>Нэг оролцогч зөвхөн нэг бүртгэл үүсгэнэ.</li>
                 <li>Имэйл хаягаа зөв оруулсан эсэхээ шалгаарай.</li>
                 <li>Бүртгэлийн дугаараа хадгалаарай.</li>
+                {registrationFee > 0 && (
+                  <li>Төлбөр төлөгдсөн тохиолдолд л бүртгэл баталгаажна.</li>
+                )}
               </ul>
             </Card>
           </div>

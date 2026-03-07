@@ -66,4 +66,5 @@ export interface Contest {
   start_time: string;
   end_time: string;
   status: string;
+  registration_fee?: number;
 }

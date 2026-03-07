@@ -5,12 +5,14 @@ export function createPool(connectionString?: string): Pool {
   const connStr = connectionString ?? config.databaseUrl;
   const isProduction = config.nodeEnv === 'production';
 
+  const useSSL = isProduction || connStr.includes('neon.tech') || connStr.includes('sslmode=require');
+
   return new Pool({
     connectionString: connStr,
     max: isProduction ? 10 : 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
-    ssl: isProduction ? { rejectUnauthorized: false } : undefined,
+    ssl: useSSL ? { rejectUnauthorized: false } : undefined,
   });
 }
 
