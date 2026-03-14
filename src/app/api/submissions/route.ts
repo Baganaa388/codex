@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     verifyAuth(request.headers.get('authorization'));
     const body = await request.json();
     const validated = validateBody(body, createSubmissionSchema);
-    const submission = await services.scoringService.submitResults(validated);
+    const submission = await services.scoringService.submitScore(validated);
     revalidateTag('leaderboard', 'minutes');
     revalidateTag('contestants', 'minutes');
     return NextResponse.json({ success: true, data: submission, error: null }, { status: 201 });

@@ -45,22 +45,7 @@ export function createLeaderboardService(pool: Pool, contestRepo: ContestReposit
       const offset = (page - 1) * limit;
 
       const result = await pool.query<LeaderboardEntry>(
-        `WITH best_scores AS (
-           SELECT s.contestant_id, s.problem_id,
-             SUM(best_sub.best_points) as total
-           FROM (
-             SELECT DISTINCT contestant_id, problem_id FROM submissions
-           ) s
-           CROSS JOIN LATERAL (
-             SELECT ss.subtask_id, MAX(ss.points_awarded) as best_points
-             FROM subtask_scores ss
-             JOIN submissions sub ON sub.id = ss.submission_id
-             WHERE sub.contestant_id = s.contestant_id AND sub.problem_id = s.problem_id
-             GROUP BY ss.subtask_id
-           ) best_sub
-           GROUP BY s.contestant_id, s.problem_id
-         )
-         SELECT
+        `SELECT
            RANK() OVER (ORDER BY lc.total_points DESC, lc.penalty_minutes ASC) as rank,
            c.reg_number,
            c.first_name,
@@ -74,12 +59,16 @@ export function createLeaderboardService(pool: Pool, contestRepo: ContestReposit
          JOIN contestants c ON c.id = lc.contestant_id
          LEFT JOIN LATERAL (
            SELECT json_agg(
-             json_build_object('problem_id', p.id, 'points', COALESCE(b.total, 0))
+             json_build_object('problem_id', p.id, 'points', COALESCE(best.best_points, 0))
              ORDER BY p.sort_order
            ) as problem_scores
            FROM problems p
-           LEFT JOIN best_scores b
-             ON b.problem_id = p.id AND b.contestant_id = c.id
+           LEFT JOIN (
+             SELECT s.problem_id, MAX(s.total_points) as best_points
+             FROM submissions s
+             WHERE s.contestant_id = c.id
+             GROUP BY s.problem_id
+           ) best ON best.problem_id = p.id
            WHERE p.contest_id = $1
          ) ps ON true
          WHERE ${where}
@@ -102,22 +91,12 @@ export function createLeaderboardService(pool: Pool, contestRepo: ContestReposit
            p.id as problem_id,
            p.title,
            p.max_points,
-           COUNT(DISTINCT CASE WHEN best.total = p.max_points THEN best.contestant_id END)::int as solved_count,
-           COALESCE(AVG(best.total), 0)::int as avg_points
+           COUNT(DISTINCT CASE WHEN best.best_points = p.max_points THEN best.contestant_id END)::int as solved_count,
+           COALESCE(AVG(best.best_points), 0)::int as avg_points
          FROM problems p
          LEFT JOIN (
-           SELECT s.contestant_id, s.problem_id,
-             SUM(best_sub.best_points) as total
-           FROM (
-             SELECT DISTINCT contestant_id, problem_id FROM submissions
-           ) s
-           CROSS JOIN LATERAL (
-             SELECT ss.subtask_id, MAX(ss.points_awarded) as best_points
-             FROM subtask_scores ss
-             JOIN submissions sub ON sub.id = ss.submission_id
-             WHERE sub.contestant_id = s.contestant_id AND sub.problem_id = s.problem_id
-             GROUP BY ss.subtask_id
-           ) best_sub
+           SELECT s.contestant_id, s.problem_id, MAX(s.total_points) as best_points
+           FROM submissions s
            GROUP BY s.contestant_id, s.problem_id
          ) best ON best.problem_id = p.id
          WHERE p.contest_id = $1

@@ -1,53 +1,18 @@
 import { Pool } from 'pg';
-import { Submission, SubtaskScore } from '@/lib/types';
+import { Submission } from '@/lib/types';
 
 export function createSubmissionRepository(pool: Pool) {
   return Object.freeze({
-    async create(contestantId: number, problemId: number): Promise<Submission> {
+    async upsertScore(contestantId: number, problemId: number, score: number): Promise<Submission> {
       const result = await pool.query<Submission>(
-        `INSERT INTO submissions (contestant_id, problem_id)
-         VALUES ($1, $2)
+        `INSERT INTO submissions (contestant_id, problem_id, total_points)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (contestant_id, problem_id)
+         DO UPDATE SET total_points = $3, submitted_at = NOW()
          RETURNING *`,
-        [contestantId, problemId],
+        [contestantId, problemId, score],
       );
       return result.rows[0];
-    },
-
-    async updateTotalPoints(submissionId: number, totalPoints: number): Promise<void> {
-      await pool.query(
-        'UPDATE submissions SET total_points = $2 WHERE id = $1',
-        [submissionId, totalPoints],
-      );
-    },
-
-    async createSubtaskScore(data: {
-      submission_id: number;
-      subtask_id: number;
-      passed: boolean;
-      points_awarded: number;
-    }): Promise<SubtaskScore> {
-      const result = await pool.query<SubtaskScore>(
-        `INSERT INTO subtask_scores (submission_id, subtask_id, passed, points_awarded)
-         VALUES ($1, $2, $3, $4)
-         RETURNING *`,
-        [data.submission_id, data.subtask_id, data.passed, data.points_awarded],
-      );
-      return result.rows[0];
-    },
-
-    async getBestSubtaskScores(
-      contestantId: number,
-      problemId: number,
-    ): Promise<readonly { subtask_id: number; best_points: number }[]> {
-      const result = await pool.query<{ subtask_id: number; best_points: number }>(
-        `SELECT ss.subtask_id, MAX(ss.points_awarded) as best_points
-         FROM subtask_scores ss
-         JOIN submissions s ON s.id = ss.submission_id
-         WHERE s.contestant_id = $1 AND s.problem_id = $2
-         GROUP BY ss.subtask_id`,
-        [contestantId, problemId],
-      );
-      return result.rows;
     },
 
     async getSubmissionsByContestant(

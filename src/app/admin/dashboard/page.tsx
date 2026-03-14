@@ -1,177 +1,143 @@
-'use client';
-
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { cacheTag, cacheLife } from 'next/cache';
 import Link from 'next/link';
-import { Plus, Calendar, Loader2, ChevronRight, LogOut } from 'lucide-react';
-import { useAdmin } from '@/hooks/useAdmin';
-import type { Contest, ApiResponse } from '@/lib/types';
+import {
+  Calendar,
+  ChevronRight,
+  Users,
+  Trophy,
+  Clock,
+  TrendingUp,
+} from 'lucide-react';
+import { services } from '@/lib/services';
+import type { Contest } from '@/lib/types';
 
-export default function AdminDashboardPage() {
-  const { authFetch, logout } = useAdmin();
-  const router = useRouter();
-  const [contests, setContests] = useState<Contest[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({
-    name: '',
-    description: '',
-    start_time: '',
-    end_time: '',
-    registration_fee: 0,
-  });
+const STATUS_CONFIG: Record<string, { label: string; color: string; dot: string }> = {
+  draft: { label: 'Ноорог', color: 'bg-slate-500/10 text-slate-400 ring-slate-500/20', dot: 'bg-slate-400' },
+  registration: { label: 'Бүртгэл', color: 'bg-emerald-500/10 text-emerald-400 ring-emerald-500/20', dot: 'bg-emerald-400' },
+  active: { label: 'Явагдаж байна', color: 'bg-cyan-500/10 text-cyan-400 ring-cyan-500/20', dot: 'bg-cyan-400 animate-pulse' },
+  grading: { label: 'Дүгнэж байна', color: 'bg-amber-500/10 text-amber-400 ring-amber-500/20', dot: 'bg-amber-400' },
+  finished: { label: 'Дууссан', color: 'bg-violet-500/10 text-violet-400 ring-violet-500/20', dot: 'bg-violet-400' },
+};
 
-  const loadContests = async () => {
-    const data = await authFetch<Contest[]>('/api/contests');
-    if (data.success && data.data) {
-      setContests(data.data);
-    }
-    setLoading(false);
+async function getContests(): Promise<readonly Contest[]> {
+  'use cache';
+  cacheTag('contests');
+  cacheLife('minutes');
+  return services.contestService.listContests();
+}
+
+export default async function AdminDashboardPage() {
+  const contests = await getContests();
+
+  const activeCount = contests.filter(c => c.status === 'active' || c.status === 'registration').length;
+  const finishedCount = contests.filter(c => c.status === 'finished').length;
+  const draftCount = contests.filter(c => c.status === 'draft').length;
+
+  return (
+    <div className="p-6 lg:p-10 max-w-6xl mx-auto space-y-8">
+      <div>
+        <h1 className="text-2xl font-black text-white tracking-tight">Хянах самбар</h1>
+        <p className="text-sm text-slate-500 mt-1">Тэмцээнүүдээ удирдах, дүн оруулах</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={Trophy} label="Нийт тэмцээн" value={String(contests.length)} color="cyan" />
+        <StatCard icon={TrendingUp} label="Идэвхтэй" value={String(activeCount)} color="emerald" />
+        <StatCard icon={Clock} label="Дууссан" value={String(finishedCount)} color="violet" />
+        <StatCard icon={Users} label="Ноорог" value={String(draftCount)} color="slate" />
+      </div>
+
+      {/* Contests */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-bold text-white">Тэмцээнүүд</h2>
+
+        {contests.length === 0 ? (
+          <div className="text-center py-20 border border-dashed border-white/10 rounded-2xl">
+            <Trophy size={40} className="text-slate-700 mx-auto mb-3" />
+            <p className="text-slate-500 font-medium">Тэмцээн байхгүй байна</p>
+            <p className="text-slate-600 text-sm mt-1">Sidebar-аас шинэ тэмцээн үүсгээрэй</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {contests.map(contest => {
+              const status = STATUS_CONFIG[contest.status] ?? STATUS_CONFIG.draft;
+              return (
+                <Link
+                  key={contest.id}
+                  href={`/admin/contest/${contest.id}`}
+                  className="group bg-white/[0.03] border border-white/[0.08] hover:border-cyan-500/30 rounded-2xl p-5 transition-all hover:bg-white/[0.05]"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-white text-lg truncate group-hover:text-cyan-400 transition-colors">
+                        {contest.name}
+                      </h3>
+                      {contest.description && (
+                        <p className="text-slate-500 text-sm mt-0.5 truncate">{contest.description}</p>
+                      )}
+                    </div>
+                    <ChevronRight size={18} className="text-slate-700 group-hover:text-cyan-400 transition-colors flex-shrink-0 mt-1" />
+                  </div>
+
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-lg ring-1 ring-inset ${status.color}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                      {status.label}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 text-[11px] text-slate-500">
+                      <Calendar size={12} />
+                      {new Date(contest.start_time).toLocaleDateString('mn-MN')}
+                    </span>
+                    {contest.registration_fee > 0 && (
+                      <span className="text-[11px] text-slate-500">
+                        ₮{contest.registration_fee.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  color,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  value: string;
+  color: 'cyan' | 'emerald' | 'violet' | 'slate';
+}) {
+  const colors = {
+    cyan: 'from-cyan-500/10 to-cyan-500/5 text-cyan-400 ring-cyan-500/10',
+    emerald: 'from-emerald-500/10 to-emerald-500/5 text-emerald-400 ring-emerald-500/10',
+    violet: 'from-violet-500/10 to-violet-500/5 text-violet-400 ring-violet-500/10',
+    slate: 'from-slate-500/10 to-slate-500/5 text-slate-400 ring-slate-500/10',
   };
-
-  useEffect(() => { loadContests(); }, []);
-
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setCreating(true);
-    const data = await authFetch<Contest>('/api/contests', {
-      method: 'POST',
-      body: JSON.stringify({
-        name: form.name,
-        description: form.description,
-        start_time: new Date(form.start_time).toISOString(),
-        end_time: new Date(form.end_time).toISOString(),
-        status: 'registration',
-        registration_fee: form.registration_fee,
-      }),
-    });
-    if (data.success) {
-      setShowCreate(false);
-      setForm({ name: '', description: '', start_time: '', end_time: '', registration_fee: 0 });
-      await loadContests();
-    }
-    setCreating(false);
-  };
-
-  const handleLogout = () => {
-    logout();
-    router.push('/admin/login');
-  };
-
-  const statusColors: Record<string, string> = {
-    draft: 'bg-slate-500/20 text-slate-400',
-    registration: 'bg-green-500/20 text-green-400',
-    active: 'bg-cyan-500/20 text-cyan-400',
-    grading: 'bg-yellow-500/20 text-yellow-400',
-    finished: 'bg-purple-500/20 text-purple-400',
-  };
-
-  const statusLabels: Record<string, string> = {
-    draft: 'Ноорог',
-    registration: 'Бүртгэл нээлттэй',
-    active: 'Явагдаж байна',
-    grading: 'Дүн шалгаж байна',
-    finished: 'Дууссан',
+  const iconColors = {
+    cyan: 'bg-cyan-500/10 text-cyan-400',
+    emerald: 'bg-emerald-500/10 text-emerald-400',
+    violet: 'bg-violet-500/10 text-violet-400',
+    slate: 'bg-slate-500/10 text-slate-400',
   };
 
   return (
-    <div className="min-h-screen bg-[#030712] text-white">
-      <header className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-black tracking-tight">CodeX Admin</h1>
-          <p className="text-xs text-slate-500">Удирдлагын самбар</p>
+    <div className={`bg-linear-to-br ${colors[color]} rounded-2xl p-5 ring-1 ring-inset`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className={`h-9 w-9 rounded-xl ${iconColors[color]} flex items-center justify-center`}>
+          <Icon size={18} />
         </div>
-        <button onClick={handleLogout} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors text-sm">
-          <LogOut size={16} /> Гарах
-        </button>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-6 py-8 space-y-8">
-        <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold">Тэмцээнүүд</h2>
-          <button
-            onClick={() => setShowCreate(!showCreate)}
-            className="bg-cyan-500 hover:bg-cyan-400 text-white font-bold px-4 py-2 rounded-xl flex items-center gap-2 transition-colors text-sm"
-          >
-            <Plus size={18} /> Шинэ тэмцээн
-          </button>
-        </div>
-
-        {showCreate && (
-          <form onSubmit={handleCreate} className="bg-white/[0.04] border border-cyan-500/30 rounded-2xl p-6 space-y-4">
-            <h3 className="font-bold text-cyan-400">Шинэ тэмцээн үүсгэх</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1 md:col-span-2">
-                <label className="text-xs font-bold text-slate-500">Нэр</label>
-                <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500 text-sm" />
-              </div>
-              <div className="space-y-1 md:col-span-2">
-                <label className="text-xs font-bold text-slate-500">Тайлбар</label>
-                <input value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500">Эхлэх цаг</label>
-                <input required type="datetime-local" value={form.start_time} onChange={e => setForm({ ...form, start_time: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500">Дуусах цаг</label>
-                <input required type="datetime-local" value={form.end_time} onChange={e => setForm({ ...form, end_time: e.target.value })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500 text-sm" />
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500">Бүртгэлийн хураамж (₮)</label>
-                <input type="number" min={0} step={1000} value={form.registration_fee} onChange={e => setForm({ ...form, registration_fee: Number(e.target.value) })}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 focus:outline-none focus:border-cyan-500 text-sm" placeholder="0 = үнэгүй" />
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button type="submit" disabled={creating}
-                className="bg-cyan-500 hover:bg-cyan-400 text-white font-bold px-6 py-2 rounded-xl text-sm disabled:opacity-50 flex items-center gap-2">
-                {creating && <Loader2 size={16} className="animate-spin" />}
-                Үүсгэх
-              </button>
-              <button type="button" onClick={() => setShowCreate(false)}
-                className="border border-white/10 hover:border-white/30 text-slate-400 px-6 py-2 rounded-xl text-sm">
-                Болих
-              </button>
-            </div>
-          </form>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center py-20"><Loader2 size={32} className="animate-spin text-cyan-400" /></div>
-        ) : contests.length === 0 ? (
-          <div className="text-center py-20 text-slate-500">Тэмцээн байхгүй байна. Шинэ тэмцээн үүсгэнэ үү.</div>
-        ) : (
-          <div className="space-y-3">
-            {contests.map(contest => (
-              <Link
-                key={contest.id}
-                href={`/admin/contest/${contest.id}`}
-                className="w-full bg-white/[0.04] border border-white/10 hover:border-cyan-500/50 rounded-2xl p-5 flex items-center justify-between transition-all text-left group block"
-              >
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <h3 className="font-bold text-lg">{contest.name}</h3>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-lg ${statusColors[contest.status] ?? ''}`}>
-                      {statusLabels[contest.status] ?? contest.status}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs text-slate-500">
-                    <span className="flex items-center gap-1"><Calendar size={12} /> {new Date(contest.start_time).toLocaleDateString('mn-MN')}</span>
-                    {contest.description && <span>{contest.description}</span>}
-                  </div>
-                </div>
-                <ChevronRight size={20} className="text-slate-600 group-hover:text-cyan-400 transition-colors" />
-              </Link>
-            ))}
-          </div>
-        )}
-      </main>
+      </div>
+      <div className="text-2xl font-black text-white">{value}</div>
+      <div className="text-xs text-slate-500 font-medium mt-0.5">{label}</div>
     </div>
   );
 }

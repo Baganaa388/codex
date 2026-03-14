@@ -15,7 +15,8 @@ export const createContestSchema = z.object({
     desc: z.string(),
     date: z.string(),
   })).default([]),
-  registration_fee: z.number().int().min(0).default(0),
+  registration_fee: z.number().int().min(0).default(0)
+    .refine(v => v === 0 || v >= 5000, { message: 'Хураамж 0 эсвэл ₮5,000-с дээш байх ёстой' }),
 }).refine(data => new Date(data.end_time) > new Date(data.start_time), {
   message: 'End time must be after start time',
   path: ['end_time'],
@@ -36,8 +37,50 @@ export const updateContestSchema = z.object({
     desc: z.string(),
     date: z.string(),
   })).optional(),
-  registration_fee: z.number().int().min(0).optional(),
+  registration_fee: z.number().int().min(0)
+    .refine(v => v === 0 || v >= 5000, { message: 'Хураамж 0 эсвэл ₮5,000-с дээш байх ёстой' })
+    .optional(),
 });
 
 export type CreateContestInput = z.infer<typeof createContestSchema>;
 export type UpdateContestInput = z.infer<typeof updateContestSchema>;
+
+/* ── Client-side form schemas ──────────────────────── */
+
+export const loginFormSchema = z.object({
+  email: z.string().min(1, 'Имэйл оруулна уу').email('Имэйл буруу байна'),
+  password: z.string().min(1, 'Нууц үг оруулна уу'),
+});
+export type LoginFormInput = z.infer<typeof loginFormSchema>;
+
+export const createContestFormSchema = z.object({
+  name: z.string().min(1, 'Тэмцээний нэр оруулна уу').max(255),
+  description: z.string(),
+});
+export type CreateContestFormInput = z.infer<typeof createContestFormSchema>;
+
+export const createProblemFormSchema = z.object({
+  title: z.string().min(1, 'Бодлогын нэр оруулна уу'),
+});
+export type CreateProblemFormInput = z.infer<typeof createProblemFormSchema>;
+
+export const scoringFormSchema = z.object({
+  reg_number: z.string().min(1, 'Бүртгэлийн дугаар оруулна уу'),
+  problem_id: z.number({ invalid_type_error: 'Бодлого сонгоно уу' }).int().positive('Бодлого сонгоно уу'),
+});
+export type ScoringFormInput = z.infer<typeof scoringFormSchema>;
+
+export const timelineFormSchema = z.object({
+  items: z.array(z.object({
+    title: z.string().min(1, 'Гарчиг оруулна уу'),
+    desc: z.string(),
+    date: z.string(),
+  })),
+});
+export type TimelineFormInput = z.infer<typeof timelineFormSchema>;
+
+export const feeFormSchema = z.object({
+  registration_fee: z.number({ invalid_type_error: 'Тоо оруулна уу' }).int().min(0, 'Сөрөг байж болохгүй')
+    .refine(v => v === 0 || v >= 5000, { message: 'Хамгийн багадаа ₮5,000 эсвэл 0 (үнэгүй)' }),
+});
+export type FeeFormInput = z.infer<typeof feeFormSchema>;

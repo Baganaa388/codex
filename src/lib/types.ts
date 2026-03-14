@@ -29,15 +29,6 @@ export interface Problem {
   readonly created_at: Date;
 }
 
-export interface Subtask {
-  readonly id: number;
-  readonly problem_id: number;
-  readonly label: string;
-  readonly points: number;
-  readonly test_count: number;
-  readonly sort_order: number;
-}
-
 export interface Contestant {
   readonly id: number;
   readonly contest_id: number;
@@ -62,14 +53,6 @@ export interface Submission {
   readonly total_points: number;
 }
 
-export interface SubtaskScore {
-  readonly id: number;
-  readonly submission_id: number;
-  readonly subtask_id: number;
-  readonly passed: boolean;
-  readonly points_awarded: number;
-}
-
 export interface LeaderboardCache {
   readonly id: number;
   readonly contest_id: number;
@@ -85,10 +68,6 @@ export interface Admin {
   readonly email: string;
   readonly password_hash: string;
   readonly created_at: Date;
-}
-
-export interface ProblemWithSubtasks extends Problem {
-  readonly subtasks: readonly Subtask[];
 }
 
 export interface LeaderboardEntry {

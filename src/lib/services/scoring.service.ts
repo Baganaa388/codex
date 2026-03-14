@@ -12,10 +12,10 @@ export function createScoringService(
   contestantRepo: ContestantRepository,
 ) {
   return Object.freeze({
-    async submitResults(data: {
+    async submitScore(data: {
       reg_number: string;
       problem_id: number;
-      subtask_results: readonly { subtask_id: number; passed: boolean }[];
+      score: number;
     }): Promise<Submission> {
       const contestant = await contestantRepo.findByRegNumber(data.reg_number);
       if (!contestant) {
@@ -28,54 +28,42 @@ export function createScoringService(
       }
 
       if (problem.contest_id !== contestant.contest_id) {
-        throw new AppError('Problem does not belong to contestant\'s contest', 400);
+        throw new AppError("Problem does not belong to contestant's contest", 400);
       }
 
-      const subtasks = await problemRepo.getSubtasksByProblemId(data.problem_id);
-      const subtaskMap = new Map(subtasks.map(st => [st.id, st]));
-
-      for (const result of data.subtask_results) {
-        if (!subtaskMap.has(result.subtask_id)) {
-          throw new AppError(`Subtask ${result.subtask_id} not found for this problem`, 400);
-        }
+      if (data.score > problem.max_points) {
+        throw new AppError(`Score cannot exceed ${problem.max_points}`, 400);
       }
 
-      const submission = await submissionRepo.create(contestant.id, data.problem_id);
-
-      let submissionTotal = 0;
-      for (const result of data.subtask_results) {
-        const subtask = subtaskMap.get(result.subtask_id)!;
-        const pointsAwarded = result.passed ? subtask.points : 0;
-        submissionTotal += pointsAwarded;
-
-        await submissionRepo.createSubtaskScore({
-          submission_id: submission.id,
-          subtask_id: result.subtask_id,
-          passed: result.passed,
-          points_awarded: pointsAwarded,
-        });
-      }
-
-      await submissionRepo.updateTotalPoints(submission.id, submissionTotal);
-
+      const submission = await submissionRepo.upsertScore(contestant.id, data.problem_id, data.score);
       await this.updateLeaderboard(contestant.id, contestant.contest_id);
-
-      return { ...submission, total_points: submissionTotal };
+      return submission;
     },
 
-    async calculateBestScore(contestantId: number, problemId: number): Promise<number> {
-      const bestScores = await submissionRepo.getBestSubtaskScores(contestantId, problemId);
-      return bestScores.reduce((sum, s) => sum + Number(s.best_points), 0);
+    async getScoresForContest(contestId: number): Promise<Record<number, Record<number, number>>> {
+      const result = await pool.query<{ contestant_id: number; problem_id: number; total_points: number }>(
+        `SELECT s.contestant_id, s.problem_id, s.total_points
+         FROM submissions s
+         JOIN contestants c ON c.id = s.contestant_id
+         WHERE c.contest_id = $1`,
+        [contestId],
+      );
+      const scores: Record<number, Record<number, number>> = {};
+      for (const row of result.rows) {
+        if (!scores[row.contestant_id]) scores[row.contestant_id] = {};
+        scores[row.contestant_id][row.problem_id] = row.total_points;
+      }
+      return scores;
     },
 
     async updateLeaderboard(contestantId: number, contestId: number): Promise<void> {
-      const problems = await problemRepo.findByContestId(contestId);
-      let totalPoints = 0;
-
-      for (const problem of problems) {
-        const bestScore = await this.calculateBestScore(contestantId, problem.id);
-        totalPoints += bestScore;
-      }
+      const result = await pool.query<{ total: number }>(
+        `SELECT COALESCE(SUM(s.total_points), 0) as total
+         FROM submissions s
+         WHERE s.contestant_id = $1`,
+        [contestantId],
+      );
+      const totalPoints = result.rows[0]?.total ?? 0;
 
       const penaltyMinutes = await this.calculatePenalty(contestantId, contestId);
 
@@ -92,27 +80,19 @@ export function createScoringService(
       const contestStartTime = await submissionRepo.getContestStartTime(contestId);
       if (!contestStartTime) return 0;
 
-      const result = await pool.query<{ submitted_at: Date; total_points: number; problem_id: number }>(
-        `SELECT s.submitted_at, s.total_points, s.problem_id
+      const result = await pool.query<{ submitted_at: Date; problem_id: number }>(
+        `SELECT s.submitted_at, s.problem_id
          FROM submissions s
          JOIN contestants c ON c.id = s.contestant_id
-         WHERE s.contestant_id = $1 AND c.contest_id = $2
-         ORDER BY s.problem_id, s.submitted_at`,
+         WHERE s.contestant_id = $1 AND c.contest_id = $2 AND s.total_points > 0`,
         [contestantId, contestId],
       );
 
       let totalPenalty = 0;
-      const bestByProblem = new Map<number, number>();
-
       for (const row of result.rows) {
-        const currentBest = bestByProblem.get(row.problem_id) ?? 0;
-        if (row.total_points > currentBest) {
-          bestByProblem.set(row.problem_id, row.total_points);
-          const elapsedMs = new Date(row.submitted_at).getTime() - new Date(contestStartTime).getTime();
-          totalPenalty += Math.max(0, Math.floor(elapsedMs / 60000));
-        }
+        const elapsedMs = new Date(row.submitted_at).getTime() - new Date(contestStartTime).getTime();
+        totalPenalty += Math.max(0, Math.floor(elapsedMs / 60000));
       }
-
       return totalPenalty;
     },
 

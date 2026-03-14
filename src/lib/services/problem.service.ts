@@ -1,6 +1,6 @@
 import { ProblemRepository } from '@/lib/repositories/problem.repository';
 import { ContestRepository } from '@/lib/repositories/contest.repository';
-import { ProblemWithSubtasks } from '@/lib/types';
+import { Problem } from '@/lib/types';
 import { AppError } from '@/lib/errors';
 
 export function createProblemService(
@@ -8,7 +8,7 @@ export function createProblemService(
   contestRepo: ContestRepository,
 ) {
   return Object.freeze({
-    async listByContest(contestId: number): Promise<readonly ProblemWithSubtasks[]> {
+    async listByContest(contestId: number): Promise<readonly Problem[]> {
       const contest = await contestRepo.findById(contestId);
       if (!contest) {
         throw new AppError('Contest not found', 404);
@@ -18,18 +18,21 @@ export function createProblemService(
 
     async createProblem(
       contestId: number,
-      data: {
-        title: string;
-        max_points: number;
-        sort_order?: number;
-        subtasks: readonly { label: string; points: number; test_count?: number }[];
-      },
-    ): Promise<ProblemWithSubtasks> {
+      data: { title: string; max_points: number; sort_order?: number },
+    ): Promise<Problem> {
       const contest = await contestRepo.findById(contestId);
       if (!contest) {
         throw new AppError('Contest not found', 404);
       }
-      return problemRepo.createWithSubtasks(contestId, data);
+      return problemRepo.create(contestId, data);
+    },
+
+    async deleteProblem(problemId: number): Promise<void> {
+      const problem = await problemRepo.findById(problemId);
+      if (!problem) {
+        throw new AppError('Problem not found', 404);
+      }
+      await problemRepo.deleteById(problemId);
     },
   });
 }

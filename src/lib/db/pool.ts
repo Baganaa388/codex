@@ -2,14 +2,19 @@ import { Pool } from 'pg';
 
 const globalForDb = globalThis as unknown as { __pool: Pool | undefined };
 
+function stripParams(connStr: string, params: string[]): string {
+  const url = new URL(connStr);
+  for (const p of params) url.searchParams.delete(p);
+  return url.toString();
+}
+
 function createPool(): Pool {
   const rawConnStr = process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/codex_olympiad';
   const isProduction = process.env.NODE_ENV === 'production';
   const useSSL = isProduction || rawConnStr.includes('neon.tech') || rawConnStr.includes('sslmode=');
 
-  // Strip sslmode from connection string to avoid pg driver warning when we set ssl manually
   const connStr = useSSL
-    ? rawConnStr.replace(/[?&]sslmode=[^&]*/g, '').replace(/\?$/, '')
+    ? stripParams(rawConnStr, ['sslmode', 'channel_binding'])
     : rawConnStr;
 
   return new Pool({

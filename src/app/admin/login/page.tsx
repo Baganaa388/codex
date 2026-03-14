@@ -3,39 +3,38 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginFormSchema, type LoginFormInput } from '@/lib/schemas/contest.schema';
 import { useAdmin } from '@/hooks/useAdmin';
 
 export default function AdminLoginPage() {
   const { setToken } = useAdmin();
   const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormInput>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: { email: '', password: '' },
+  });
 
+  const onSubmit = async (data: LoginFormInput) => {
+    setServerError(null);
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(data),
       });
-      const data = await res.json();
-
-      if (data.success) {
-        setToken(data.data.token);
+      const json = await res.json();
+      if (json.success) {
+        setToken(json.data.token);
         router.push('/admin/dashboard');
       } else {
-        setError(data.error ?? 'Нэвтрэх боломжгүй');
+        setServerError(json.error ?? 'Нэвтрэх боломжгүй');
       }
     } catch {
-      setError('Сервертэй холбогдож чадсангүй');
-    } finally {
-      setLoading(false);
+      setServerError('Сервертэй холбогдож чадсангүй');
     }
   };
 
@@ -50,11 +49,11 @@ export default function AdminLoginPage() {
           <p className="text-slate-500 mt-2">CodeX Olympiad удирдлагын самбар</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white/[0.04] border border-white/10 rounded-2xl p-8 space-y-6">
-          {error && (
+        <form onSubmit={handleSubmit(onSubmit)} className="bg-white/[0.04] border border-white/10 rounded-2xl p-8 space-y-6">
+          {serverError && (
             <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
               <AlertCircle size={16} />
-              {error}
+              {serverError}
             </div>
           )}
 
@@ -64,13 +63,14 @@ export default function AdminLoginPage() {
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input
                 type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-cyan-500 text-white"
+                {...register('email')}
+                className={`w-full bg-white/5 border rounded-xl pl-10 pr-4 py-3 focus:outline-none text-white ${
+                  errors.email ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-cyan-500'
+                }`}
                 placeholder="admin@codex.mn"
               />
             </div>
+            {errors.email && <p className="text-xs text-red-400">{errors.email.message}</p>}
           </div>
 
           <div className="space-y-2">
@@ -79,22 +79,23 @@ export default function AdminLoginPage() {
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
               <input
                 type="password"
-                required
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-cyan-500 text-white"
+                {...register('password')}
+                className={`w-full bg-white/5 border rounded-xl pl-10 pr-4 py-3 focus:outline-none text-white ${
+                  errors.password ? 'border-red-500/50 focus:border-red-500' : 'border-white/10 focus:border-cyan-500'
+                }`}
                 placeholder="••••••••"
               />
             </div>
+            {errors.password && <p className="text-xs text-red-400">{errors.password.message}</p>}
           </div>
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            {loading ? <Loader2 size={20} className="animate-spin" /> : null}
-            {loading ? 'Нэвтэрч байна...' : 'Нэвтрэх'}
+            {isSubmitting ? <Loader2 size={20} className="animate-spin" /> : null}
+            {isSubmitting ? 'Нэвтэрч байна...' : 'Нэвтрэх'}
           </button>
         </form>
       </div>
