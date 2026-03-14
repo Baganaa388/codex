@@ -4,6 +4,8 @@ import { createContestRepository } from '@/lib/repositories/contest.repository';
 import { createProblemRepository } from '@/lib/repositories/problem.repository';
 import { createContestantRepository } from '@/lib/repositories/contestant.repository';
 import { createSubmissionRepository } from '@/lib/repositories/submission.repository';
+import { createSlideRepository } from '@/lib/repositories/slide.repository';
+import { createSponsorRepository } from '@/lib/repositories/sponsor.repository';
 import { createAuthService } from '@/lib/services/auth.service';
 import { createContestService } from '@/lib/services/contest.service';
 import { createProblemService } from '@/lib/services/problem.service';
@@ -22,6 +24,8 @@ function createServices() {
   const problemRepo = createProblemRepository(pool);
   const contestantRepo = createContestantRepository(pool);
   const submissionRepo = createSubmissionRepository(pool);
+  const slideRepo = createSlideRepository(pool);
+  const sponsorRepo = createSponsorRepository(pool);
 
   return Object.freeze({
     authService: createAuthService(adminRepo),
@@ -32,6 +36,8 @@ function createServices() {
     leaderboardService: createLeaderboardService(pool, contestRepo),
     qpayService: createQPayService(),
     contestantRepo,
+    slideRepo,
+    sponsorRepo,
   });
 }
 

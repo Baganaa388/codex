@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS slides (
+  id SERIAL PRIMARY KEY,
+  image_url VARCHAR(500) NOT NULL,
+  title VARCHAR(255) DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sponsors (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  logo_url VARCHAR(500) NOT NULL,
+  description TEXT DEFAULT '',
+  detail TEXT DEFAULT '',
+  website VARCHAR(500) DEFAULT '',
+  founded VARCHAR(10) DEFAULT '',
+  focus VARCHAR(255) DEFAULT '',
+  tier VARCHAR(20) NOT NULL DEFAULT 'gold' CHECK (tier IN ('gold', 'silver', 'bronze')),
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

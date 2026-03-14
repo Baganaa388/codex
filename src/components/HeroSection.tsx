@@ -40,7 +40,7 @@ const useCountUp = (end: number, duration = 2000) => {
   return { count, ref };
 };
 
-const HERO_SLIDES = [
+const DEFAULT_SLIDES = [
   { src: '/logo/slides/hero-1.png', alt: 'Programming competition scene' },
   { src: '/logo/slides/hero-2.jpg', alt: 'Hands typing code' },
   { src: '/logo/slides/hero-3.jpg', alt: 'Coding olympiad auditorium' },
@@ -88,7 +88,13 @@ function HeroStats() {
   );
 }
 
-export function HeroSection() {
+interface HeroSlide {
+  readonly src: string;
+  readonly alt: string;
+}
+
+export function HeroSection({ slides }: { slides?: readonly HeroSlide[] }) {
+  const heroSlides = slides && slides.length > 0 ? slides : DEFAULT_SLIDES;
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
@@ -104,14 +110,14 @@ export function HeroSection() {
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      goToSlide((currentSlide + 1) % HERO_SLIDES.length);
+      goToSlide((currentSlide + 1) % heroSlides.length);
     }, 5000);
     return () => window.clearInterval(interval);
-  }, [currentSlide, goToSlide]);
+  }, [currentSlide, goToSlide, heroSlides.length]);
 
   return (
     <section className="relative h-screen w-full overflow-hidden">
-      {HERO_SLIDES.map((slide, index) => (
+      {heroSlides.map((slide, index) => (
         <div
           key={slide.src}
           className="absolute inset-0 transition-opacity duration-[1200ms] ease-in-out"
@@ -174,7 +180,7 @@ export function HeroSection() {
       </div>
 
       <div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 gap-2">
-        {HERO_SLIDES.map((_, index) => (
+        {heroSlides.map((_, index) => (
           <button
             key={index}
             onClick={() => goToSlide(index)}

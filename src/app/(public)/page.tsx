@@ -9,11 +9,12 @@ import {
   Clock,
   Trophy,
 } from "lucide-react";
+import { cacheTag, cacheLife } from "next/cache";
 import { STATS, FAQ_DATA } from "@/constants";
 import { Card, SectionHeading } from "@/components/UI";
 import { HeroSection } from "@/components/HeroSection";
 import { SponsorCard } from "@/components/SponsorCard";
-import type { Sponsor } from "@/components/SponsorCard";
+import { services } from "@/lib/services";
 
 const ICON_MAP: Record<
   string,
@@ -25,33 +26,25 @@ const ICON_MAP: Record<
   Trophy,
 };
 
-const SPONSORS: readonly Sponsor[] = [
-  {
-    logo: "/logo/teee.png",
-    name: "TEEE",
-    desc: "The Essential Engineering Education",
-    detail:
-      "TEEE нь инженерчлэлийн боловсролын чанарыг дээшлүүлэх зорилготой байгууллага юм. Програмчлал, робот техник, хиймэл оюун ухааны чиглэлээр сургалт зохион байгуулдаг. 2020 оноос хойш 5,000+ суралцагчдад үйлчилсэн.",
-    website: "https://teee.mn",
-    founded: "2020",
-    focus: "Инженерчлэлийн боловсрол",
-  },
-  {
-    logo: "/logo/teee.png",
-    name: "Mobicom",
-    desc: "Харилцаа холбоо",
-    detail:
-      "Мобиком корпораци нь Монгол Улсын тэргүүлэх харилцаа холбооны компани бөгөөд технологийн боловсролыг дэмжин ажилладаг. CodeX олимпиадын алтан ивээн тэтгэгч.",
-    website: "https://mobicom.mn",
-    founded: "1996",
-    focus: "Харилцаа холбоо, технологи",
-  },
-];
+async function getSlides() {
+  "use cache";
+  cacheTag("slides");
+  cacheLife("seconds");
+  return services.slideRepo.findAll();
+}
 
-export default function HomePage() {
+async function getSponsors() {
+  "use cache";
+  cacheTag("sponsors");
+  cacheLife("seconds");
+  return services.sponsorRepo.findAll();
+}
+
+export default async function HomePage() {
+  const [slides, sponsors] = await Promise.all([getSlides(), getSponsors()]);
   return (
     <div className="space-y-24">
-      <HeroSection />
+      <HeroSection slides={slides.map(s => ({ src: s.image_url, alt: s.title }))} />
 
       {/* Stats Strip */}
       <section className="bg-white/70 border-y border-slate-900/5 py-10 backdrop-blur-sm">
@@ -136,16 +129,70 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-[#866300]">
-            <span className="h-px w-12 bg-[#EDAF00]/70" />
-            Алтан ивээн тэтгэгч
-          </div>
+          {sponsors.some(s => s.tier === 'gold') && (
+            <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-[#866300]">
+              <span className="h-px w-12 bg-[#EDAF00]/70" />
+              Алтан ивээн тэтгэгч
+            </div>
+          )}
 
           <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {SPONSORS.map((s) => (
-              <SponsorCard key={s.name} sponsor={s} />
+            {sponsors.filter(s => s.tier === 'gold').map((s) => (
+              <SponsorCard key={s.id} sponsor={{
+                logo: s.logo_url,
+                name: s.name,
+                desc: s.description,
+                detail: s.detail,
+                website: s.website,
+                founded: s.founded,
+                focus: s.focus,
+              }} />
             ))}
           </div>
+
+          {sponsors.some(s => s.tier === 'silver') && (
+            <>
+              <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+                <span className="h-px w-12 bg-slate-400/40" />
+                Мөнгөн ивээн тэтгэгч
+              </div>
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                {sponsors.filter(s => s.tier === 'silver').map((s) => (
+                  <SponsorCard key={s.id} sponsor={{
+                    logo: s.logo_url,
+                    name: s.name,
+                    desc: s.description,
+                    detail: s.detail,
+                    website: s.website,
+                    founded: s.founded,
+                    focus: s.focus,
+                  }} />
+                ))}
+              </div>
+            </>
+          )}
+
+          {sponsors.some(s => s.tier === 'bronze') && (
+            <>
+              <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-orange-700/60">
+                <span className="h-px w-12 bg-orange-400/40" />
+                Хүрэл ивээн тэтгэгч
+              </div>
+              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                {sponsors.filter(s => s.tier === 'bronze').map((s) => (
+                  <SponsorCard key={s.id} sponsor={{
+                    logo: s.logo_url,
+                    name: s.name,
+                    desc: s.description,
+                    detail: s.detail,
+                    website: s.website,
+                    founded: s.founded,
+                    focus: s.focus,
+                  }} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </section>
 

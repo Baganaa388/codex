@@ -13,12 +13,14 @@ import {
   Menu,
   X,
   Plus,
+  Home,
 } from 'lucide-react';
 import { useAdmin } from '@/hooks/useAdmin';
 import { useRouter } from 'next/navigation';
 
 const NAV_ITEMS = [
   { href: '/admin/dashboard', label: 'Хянах самбар', icon: LayoutDashboard },
+  { href: '/admin/homepage', label: 'Нүүр хуудас', icon: Home },
 ];
 
 export function AdminSidebar() {

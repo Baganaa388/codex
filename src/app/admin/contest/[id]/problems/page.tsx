@@ -1,11 +1,11 @@
-import { cacheTag, cacheLife } from 'next/cache';
-import { services } from '@/lib/services';
-import { ProblemsTab } from '@/components/admin/ProblemsTab';
+import { cacheTag, cacheLife } from "next/cache";
+import { services } from "@/lib/services";
+import { ProblemsTab } from "@/components/admin/ProblemsTab";
 
 async function getProblems(contestId: number) {
-  'use cache';
-  cacheTag('problems');
-  cacheLife('minutes');
+  "use cache";
+  cacheTag("problems");
+  cacheLife("minutes");
   return services.problemService.listByContest(contestId);
 }
 

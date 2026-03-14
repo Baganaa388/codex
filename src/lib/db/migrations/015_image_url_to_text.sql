@@ -1,0 +1,2 @@
+ALTER TABLE slides ALTER COLUMN image_url TYPE TEXT;
+ALTER TABLE sponsors ALTER COLUMN logo_url TYPE TEXT;
