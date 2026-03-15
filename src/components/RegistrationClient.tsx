@@ -181,7 +181,7 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
     pollRef.current = setInterval(async () => {
       try {
         setChecking(true);
-        const res = await fetch(`/api/payment/${contestantId}/check`);
+        const res = await fetch(`/api/payment/check/${contestantId}`);
         const data = await res.json();
         if (data.success && data.data?.paid) {
           if (pollRef.current) clearInterval(pollRef.current);
@@ -317,7 +317,7 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
 
       if (registrationFee > 0 && registered.payment_status !== 'free') {
         const invoiceRes = await fetch(
-          `/api/payment/${registered.id}/invoice`,
+          `/api/payment/invoice/${registered.id}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -349,7 +349,7 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
     if (!contestant) return;
     setChecking(true);
     try {
-      const res = await fetch(`/api/payment/${contestant.id}/check`);
+      const res = await fetch(`/api/payment/check/${contestant.id}`);
       const data = await res.json();
       if (data.success && data.data?.paid) {
         if (pollRef.current) clearInterval(pollRef.current);
@@ -359,7 +359,7 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
         setTimeout(() => setError(null), 3000);
       }
     } catch {
-      setError('Шалгахад алдаа гарлаа.');
+      setError('Төлбөр шалгах үед алдаа гарлаа.');
     } finally {
       setChecking(false);
     }
