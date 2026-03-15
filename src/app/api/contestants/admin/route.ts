@@ -11,10 +11,14 @@ export async function POST(request: NextRequest) {
     verifyAuth(request.headers.get('authorization'));
     const body = await request.json();
     const validated = validateBody(body, adminCreateContestantSchema);
-    const contestant = await services.contestantService.registerByAdmin(validated);
+    const contestant = await services.contestantService.registerByAdmin({
+      ...validated,
+      payment_status: validated.payment_status ?? 'pending',
+    });
     revalidateTag('contestants', 'minutes');
     return NextResponse.json({ success: true, data: contestant, error: null }, { status: 201 });
   } catch (error) {
     return handleRouteError(error);
   }
 }
+
