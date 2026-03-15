@@ -30,14 +30,24 @@ async function getSlides() {
   "use cache";
   cacheTag("slides");
   cacheLife("seconds");
-  return services.slideRepo.findAll();
+  try {
+    return await services.slideRepo.findAll();
+  } catch (error) {
+    console.error("Failed to load homepage slides", error);
+    return [];
+  }
 }
 
 async function getSponsors() {
   "use cache";
   cacheTag("sponsors");
   cacheLife("seconds");
-  return services.sponsorRepo.findAll();
+  try {
+    return await services.sponsorRepo.findAll();
+  } catch (error) {
+    console.error("Failed to load sponsors", error);
+    return [];
+  }
 }
 
 export default async function HomePage() {
@@ -70,7 +80,7 @@ export default async function HomePage() {
       <section className="max-w-7xl mx-auto px-6">
         <SectionHeading
           title="Олимпиадын тухай"
-          subtitle="Бид алгоритмын сэтгэлгээг дэмжиж, шинэ үеийн технологийн салбарын манлайлагчдыг тодруулах зорилготой."
+          subtitle="Өнөө үеийн технологийн хувьсал, дижитал шилжилт нь мэдээллийн технологийн салбарын инженерүүдээс зөвхөн онолын мэдлэг төдийгүй, бодит асуудлыг шийдвэрлэх хурд, алгоритмын гүнзгий ойлголт, бүтээлч сэтгэлгээг шаарддаг болсон билээ. CodeX олимпиад нь энэхүү шаардлагад нийцсэн ИРЭЭДҮЙН ИНЖЕНЕР-үүдийг бэлтгэх зорилготой."
           centered
         />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
@@ -90,7 +100,7 @@ export default async function HomePage() {
             </div>
             <h3 className="text-xl font-bold mb-4">Бүх хэл дээр</h3>
             <p className="text-slate-600 text-sm leading-relaxed">
-              C++, Java, Python хэлүүдийн аль нэгийг сонгон оролцох боломжтой.
+              C, C++, Java, Python хэлүүдийн аль нэгийг сонгон оролцох боломжтой.
             </p>
           </Card>
           <Card className="flex flex-col items-center text-center">
@@ -106,95 +116,96 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Sponsors Strip */}
-      <section className="py-20 bg-[linear-gradient(180deg,rgba(237,175,0,.08),rgba(47,85,190,.06))] overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#EDAF00]/30 bg-white/80 px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#866300]">
-                ХАМТРАГЧИД
+      {sponsors.length > 0 && (
+        <section className="py-20 bg-[linear-gradient(180deg,rgba(237,175,0,.08),rgba(47,85,190,.06))] overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full border border-[#EDAF00]/30 bg-white/80 px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#866300]">
+                  ХАМТРАГЧИД
+                </div>
+                <h3 className="mt-4 text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+                  Ивээн <span className="text-[#EDAF00]">тэтгэгчид</span>
+                </h3>
+                <p className="mt-3 text-slate-600 max-w-xl">
+                  Манай олимпиадын хамтрагч байгууллагуудад баярлалаа.
+                </p>
               </div>
-              <h3 className="mt-4 text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
-                Ивээн <span className="text-[#EDAF00]">тэтгэгчид</span>
-              </h3>
-              <p className="mt-3 text-slate-600 max-w-xl">
-                Манай олимпиадын хамтрагч байгууллагуудад баярлалаа.
-              </p>
+              <Link
+                href="/contact"
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-bold text-[#866300] shadow-[0_12px_30px_rgba(15,23,42,0.12)] hover:-translate-y-px transition"
+              >
+                Хамтрагч болох <ChevronRight size={18} />
+              </Link>
             </div>
-            <Link
-              href="/contact"
-              className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-bold text-[#866300] shadow-[0_12px_30px_rgba(15,23,42,0.12)] hover:-translate-y-px transition"
-            >
-              Хамтрагч болох <ChevronRight size={18} />
-            </Link>
-          </div>
 
-          {sponsors.some(s => s.tier === 'gold') && (
-            <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-[#866300]">
-              <span className="h-px w-12 bg-[#EDAF00]/70" />
-              Алтан ивээн тэтгэгч
+            {sponsors.some(s => s.tier === 'gold') && (
+              <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-[#866300]">
+                <span className="h-px w-12 bg-[#EDAF00]/70" />
+                Алтан ивээн тэтгэгч
+              </div>
+            )}
+
+            <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+              {sponsors.filter(s => s.tier === 'gold').map((s) => (
+                <SponsorCard key={s.id} sponsor={{
+                  logo: s.logo_url,
+                  name: s.name,
+                  desc: s.description,
+                  detail: s.detail,
+                  website: s.website,
+                  founded: s.founded,
+                  focus: s.focus,
+                }} />
+              ))}
             </div>
-          )}
 
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            {sponsors.filter(s => s.tier === 'gold').map((s) => (
-              <SponsorCard key={s.id} sponsor={{
-                logo: s.logo_url,
-                name: s.name,
-                desc: s.description,
-                detail: s.detail,
-                website: s.website,
-                founded: s.founded,
-                focus: s.focus,
-              }} />
-            ))}
+            {sponsors.some(s => s.tier === 'silver') && (
+              <>
+                <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+                  <span className="h-px w-12 bg-slate-400/40" />
+                  Мөнгөн ивээн тэтгэгч
+                </div>
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                  {sponsors.filter(s => s.tier === 'silver').map((s) => (
+                    <SponsorCard key={s.id} sponsor={{
+                      logo: s.logo_url,
+                      name: s.name,
+                      desc: s.description,
+                      detail: s.detail,
+                      website: s.website,
+                      founded: s.founded,
+                      focus: s.focus,
+                    }} />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {sponsors.some(s => s.tier === 'bronze') && (
+              <>
+                <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-orange-700/60">
+                  <span className="h-px w-12 bg-orange-400/40" />
+                  Хүрэл ивээн тэтгэгч
+                </div>
+                <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                  {sponsors.filter(s => s.tier === 'bronze').map((s) => (
+                    <SponsorCard key={s.id} sponsor={{
+                      logo: s.logo_url,
+                      name: s.name,
+                      desc: s.description,
+                      detail: s.detail,
+                      website: s.website,
+                      founded: s.founded,
+                      focus: s.focus,
+                    }} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-
-          {sponsors.some(s => s.tier === 'silver') && (
-            <>
-              <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-slate-500">
-                <span className="h-px w-12 bg-slate-400/40" />
-                Мөнгөн ивээн тэтгэгч
-              </div>
-              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                {sponsors.filter(s => s.tier === 'silver').map((s) => (
-                  <SponsorCard key={s.id} sponsor={{
-                    logo: s.logo_url,
-                    name: s.name,
-                    desc: s.description,
-                    detail: s.detail,
-                    website: s.website,
-                    founded: s.founded,
-                    focus: s.focus,
-                  }} />
-                ))}
-              </div>
-            </>
-          )}
-
-          {sponsors.some(s => s.tier === 'bronze') && (
-            <>
-              <div className="mt-10 flex items-center gap-4 text-xs font-bold uppercase tracking-widest text-orange-700/60">
-                <span className="h-px w-12 bg-orange-400/40" />
-                Хүрэл ивээн тэтгэгч
-              </div>
-              <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-                {sponsors.filter(s => s.tier === 'bronze').map((s) => (
-                  <SponsorCard key={s.id} sponsor={{
-                    logo: s.logo_url,
-                    name: s.name,
-                    desc: s.description,
-                    detail: s.detail,
-                    website: s.website,
-                    founded: s.founded,
-                    focus: s.focus,
-                  }} />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* FAQ Section */}
       <section className="max-w-3xl mx-auto px-6 mb-24">

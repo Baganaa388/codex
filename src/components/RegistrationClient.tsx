@@ -7,21 +7,52 @@ import { DEFAULT_TIMELINE } from '@/constants';
 import type { Contest } from '@/lib/types';
 
 const formatDate = (d: string | Date) => {
-  try {
-    return new Date(d).toLocaleDateString('mn-MN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  } catch {
+  const date = new Date(d);
+  if (Number.isNaN(date.getTime())) {
     return String(d);
   }
+
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getUTCDate()}`.padStart(2, '0');
+
+  return `${year}/${month}/${day}`;
 };
 
 const formatAmount = (n: number) =>
   new Intl.NumberFormat('mn-MN').format(n) + '₮';
 
+const getCategoryFromClassLevel = (value: string) => {
+  const classNumber = Number.parseInt(value.trim(), 10);
+
+  if (!Number.isInteger(classNumber)) return '';
+  if (classNumber >= 4 && classNumber <= 6) return 'Бага';
+  if (classNumber >= 7 && classNumber <= 9) return 'Дунд';
+  if (classNumber >= 10 && classNumber <= 12) return 'Ахлах';
+  return '';
+};
+
+const getBirthYearFromRegisterNumber = (value: string) => {
+  const normalized = value.trim().toUpperCase();
+  if (!/^[A-ZА-ЯӨҮЁ]{2}\d{8}$/i.test(normalized)) return null;
+
+  const yearPart = Number.parseInt(normalized.slice(2, 4), 10);
+  const now = new Date();
+  const currentTwoDigitYear = now.getFullYear() % 100;
+
+  return yearPart <= currentTwoDigitYear
+    ? 2000 + yearPart
+    : 1900 + yearPart;
+};
+
+const getExpectedSchoolGrade = (birthYear: number) => {
+  const now = new Date();
+  const schoolYearEnd = now.getMonth() >= 8 ? now.getFullYear() + 1 : now.getFullYear();
+  return schoolYearEnd - birthYear - 6;
+};
+
 interface FormData {
+  registerNumber: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -33,6 +64,8 @@ interface FormData {
   languages: string[];
   agreement: boolean;
 }
+
+type FormErrors = Partial<Record<keyof FormData, string>>;
 
 interface QPayInvoice {
   invoice_id: string;
@@ -57,6 +90,7 @@ interface RegistrationClientProps {
 export function RegistrationClient({ contests }: RegistrationClientProps) {
   const [selectedContest, setSelectedContest] = useState<Contest | null>(null);
   const [formData, setFormData] = useState<FormData>({
+    registerNumber: '',
     firstName: '',
     lastName: '',
     email: '',
@@ -64,13 +98,14 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
     school: '',
     classLevel: '',
     level: 'Эхлэгч',
-    category: 'Бага',
+    category: '',
     languages: [],
     agreement: false,
   });
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState<Step>('form');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FormErrors>({});
   const [contestant, setContestant] = useState<RegisteredContestant | null>(null);
   const [invoice, setInvoice] = useState<QPayInvoice | null>(null);
   const [checking, setChecking] = useState(false);
@@ -101,10 +136,38 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
     field: keyof FormData,
     value: string | boolean | string[],
   ) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFieldErrors(prev => {
+      const next = { ...prev };
+      delete next[field];
+      if (field === 'classLevel' || field === 'category') {
+        delete next.classLevel;
+        delete next.category;
+      }
+      if (field === 'agreement') {
+        delete next.agreement;
+      }
+      return next;
+    });
+    setFormData(prev => {
+      if (field === 'classLevel' && typeof value === 'string') {
+        return {
+          ...prev,
+          classLevel: value,
+          category: getCategoryFromClassLevel(value),
+        };
+      }
+
+      return { ...prev, [field]: value };
+    });
   };
 
   const toggleLanguage = (lang: string) => {
+    setFieldErrors(prev => {
+      if (!prev.languages) return prev;
+      const next = { ...prev };
+      delete next.languages;
+      return next;
+    });
     setFormData(prev => ({
       ...prev,
       languages: prev.languages.includes(lang)
@@ -132,17 +195,95 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
     }, 5000);
   }, []);
 
+  const validateForm = () => {
+    const errors: FormErrors = {};
+    const digitsOnlyPhone = formData.phone.replace(/\D/g, '');
+    const classNumber = Number.parseInt(formData.classLevel.trim(), 10);
+    const nameRegex = /^[^\d]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!formData.lastName.trim()) {
+      errors.lastName = 'Овог оруулна уу.';
+    } else if (!nameRegex.test(formData.lastName.trim())) {
+      errors.lastName = 'Овогт тоо оруулж болохгүй.';
+    }
+
+    if (!formData.registerNumber.trim()) {
+      errors.registerNumber = 'Регистрийн дугаар оруулна уу.';
+    } else if (!/^[A-Za-zА-Яа-яӨөҮүЁё]{2}\d{8}$/.test(formData.registerNumber.trim())) {
+      errors.registerNumber = 'Регистрийн дугаар 2 үсэг, 8 тооноос бүрдсэн байна.';
+    }
+
+    if (!formData.firstName.trim()) {
+      errors.firstName = 'Нэр оруулна уу.';
+    } else if (!nameRegex.test(formData.firstName.trim())) {
+      errors.firstName = 'Нэрэнд тоо оруулж болохгүй.';
+    }
+
+    if (!formData.email.trim()) {
+      errors.email = 'Имэйл хаяг заавал оруулна уу.';
+    } else if (!emailRegex.test(formData.email.trim())) {
+      errors.email = 'Зөв имэйл хаяг оруулна уу.';
+    }
+
+    if (!digitsOnlyPhone) {
+      errors.phone = 'Утасны дугаар оруулна уу.';
+    } else if (digitsOnlyPhone.length < 8) {
+      errors.phone = 'Утасны дугаар хамгийн багадаа 8 оронтой байна.';
+    }
+
+    if (!formData.school.trim()) {
+      errors.school = 'ЕБС сургуулиа оруулна уу.';
+    }
+
+    if (!formData.classLevel.trim()) {
+      errors.classLevel = 'ЕБС ангиа оруулна уу.';
+    } else if (!Number.isInteger(classNumber) || classNumber < 4 || classNumber > 12) {
+      errors.classLevel = 'ЕБС анги 4-12 хооронд байх ёстой.';
+    } else {
+      const birthYear = getBirthYearFromRegisterNumber(formData.registerNumber);
+      if (birthYear) {
+        const expectedGrade = getExpectedSchoolGrade(birthYear);
+        if (expectedGrade > 12) {
+          errors.classLevel = 'Уучлаарай, та энэхүү олимпиадад оролцох боломжгүй байна.';
+        } else if (expectedGrade !== classNumber) {
+          errors.classLevel = `Регистрийн дугаараас тооцоход ЕБС анги ${expectedGrade} байх ёстой.`;
+        }
+      }
+
+      const derivedCategory = getCategoryFromClassLevel(formData.classLevel);
+
+      if (!derivedCategory) {
+        errors.classLevel = 'ЕБС анги 4-12 хооронд байх ёстой.';
+      } else if (formData.category !== derivedCategory) {
+        errors.classLevel = 'ЕБС ангиас насны ангиллыг автоматаар тодорхойлж чадсангүй.';
+      }
+    }
+
+    if (!formData.languages.length) {
+      errors.languages = 'Хамгийн багадаа нэг програмчлалын хэл сонгоно уу.';
+    }
+
+    if (!formData.agreement) {
+      errors.agreement = 'Дүрэм, нөхцөлийг зөвшөөрнө үү.';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const onSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    setFieldErrors({});
 
     if (!activeContest) {
       setError('Тэмцээн сонгоно уу.');
       return;
     }
 
-    if (!formData.agreement) {
-      setError('Дүрэм, нөхцөлийг зөвшөөрнө үү.');
+    if (!validateForm()) {
+      setError('Мэдээллээ зөв бөглөөд дахин оролдоно уу.');
       return;
     }
 
@@ -154,11 +295,13 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contest_id: activeContest.id,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          organization: formData.school,
+          register_number: formData.registerNumber.trim().toUpperCase(),
+          class_level: formData.classLevel.trim(),
+          first_name: formData.firstName.trim(),
+          last_name: formData.lastName.trim(),
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
+          organization: formData.school.trim(),
           category: formData.category,
         }),
       });
@@ -359,11 +502,18 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
   return (
     <section className="section pt-10">
       <div className="container">
-        <SectionHeading
-          title="Явц ба Хуваарь"
-          subtitle="2026 оны олимпиадын бүртгэл, финал, шагналын гол огноонууд."
-          centered
-        />
+        <div className="mb-12 text-center">
+          <h2 className="text-3xl font-extrabold tracking-tight text-slate-900 md:text-4xl">
+            Явц ба{' '}
+            <span className="text-[#B98000]">
+              Хуваарь
+            </span>
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-slate-600">
+            2026 оны олимпиадын бүртгэл, финал, шагналын гол огноонууд.
+          </p>
+          <div className="mx-auto mt-6 h-1.5 w-20 rounded-full bg-gradient-to-r from-[#F5D372] via-[#EDAF00] to-[#B98000]" />
+        </div>
 
         <div className="timeline-strip">
           <div className="timeline-line" />
@@ -432,7 +582,7 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
             </Card>
 
             <Card className="registration-form max-w-5xl mx-auto w-full">
-              <form onSubmit={onSubmit} className="grid gap-8">
+              <form onSubmit={onSubmit} className="grid gap-8" noValidate>
                 <div className="grid gap-5 md:grid-cols-2">
                   <label className="field">
                     Овог
@@ -441,8 +591,8 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
                       value={formData.lastName}
                       onChange={e => handleChange('lastName', e.target.value)}
                       placeholder="Бат"
-                      required
                     />
+                    {fieldErrors.lastName && <span className="text-sm text-red-500">{fieldErrors.lastName}</span>}
                   </label>
                   <label className="field">
                     Нэр
@@ -451,8 +601,8 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
                       value={formData.firstName}
                       onChange={e => handleChange('firstName', e.target.value)}
                       placeholder="Тэмүүлэн"
-                      required
                     />
+                    {fieldErrors.firstName && <span className="text-sm text-red-500">{fieldErrors.firstName}</span>}
                   </label>
                   <label className="field">
                     Имэйл хаяг
@@ -461,8 +611,18 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
                       value={formData.email}
                       onChange={e => handleChange('email', e.target.value)}
                       placeholder="name@email.com"
-                      required
                     />
+                    {fieldErrors.email && <span className="text-sm text-red-500">{fieldErrors.email}</span>}
+                  </label>
+                  <label className="field">
+                    Регистрийн дугаар
+                    <input
+                      type="text"
+                      value={formData.registerNumber}
+                      onChange={e => handleChange('registerNumber', e.target.value)}
+                      placeholder="АБ12345678"
+                    />
+                    {fieldErrors.registerNumber && <span className="text-sm text-red-500">{fieldErrors.registerNumber}</span>}
                   </label>
                   <label className="field">
                     Утасны дугаар
@@ -471,8 +631,8 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
                       value={formData.phone}
                       onChange={e => handleChange('phone', e.target.value)}
                       placeholder="9911 2233"
-                      required
                     />
+                    {fieldErrors.phone && <span className="text-sm text-red-500">{fieldErrors.phone}</span>}
                   </label>
                   <label className="field">
                     ЕБС Сургууль
@@ -481,19 +641,18 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
                       value={formData.school}
                       onChange={e => handleChange('school', e.target.value)}
                       placeholder="10-р сургууль"
-                      required
                     />
+                    {fieldErrors.school && <span className="text-sm text-red-500">{fieldErrors.school}</span>}
                   </label>
                   <label className="field">
                     Насны ангилал
-                    <select
+                    <input
+                      type="text"
                       value={formData.category}
-                      onChange={e => handleChange('category', e.target.value)}
-                    >
-                      <option value="Бага">Бага анги</option>
-                      <option value="Дунд">Дунд анги</option>
-                      <option value="Ахлах">Ахлах анги</option>
-                    </select>
+                      readOnly
+                      disabled
+                      placeholder="ЕБС анги оруулахад автоматаар сонгогдоно"
+                    />
                   </label>
                 </div>
 
@@ -516,21 +675,21 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
                     </div>
                   </label>
                   <label className="field">
-                    Анги
+                    ЕБС анги
                     <input
                       type="text"
                       value={formData.classLevel}
                       onChange={e => handleChange('classLevel', e.target.value)}
                       placeholder="9-р анги"
-                      required
                     />
+                    {fieldErrors.classLevel && <span className="text-sm text-red-500">{fieldErrors.classLevel}</span>}
                   </label>
                 </div>
 
                 <div className="field">
                   Програмчлалын хэл (олон сонголт боломжтой)
                   <div className="pill-group">
-                    {['C++', 'Java', 'Python', 'JavaScript', 'Kotlin'].map(
+                    {['C','C++', 'Java', 'Python'].map(
                       lang => (
                         <button
                           key={lang}
@@ -547,6 +706,7 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
                       ),
                     )}
                   </div>
+                  {fieldErrors.languages && <span className="text-sm text-red-500">{fieldErrors.languages}</span>}
                 </div>
 
                 <label className="checkbox">
@@ -564,6 +724,7 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
                     баталгаажуулахын тулд имэйлээ шалгаарай.
                   </span>
                 </label>
+                {fieldErrors.agreement && <div className="text-sm text-red-500">{fieldErrors.agreement}</div>}
 
                 {error && <div className="alert">{error}</div>}
 
@@ -592,6 +753,7 @@ export function RegistrationClient({ contests }: RegistrationClientProps) {
                 <li>Нэг оролцогч зөвхөн нэг бүртгэл үүсгэнэ.</li>
                 <li>Имэйл хаягаа зөв оруулсан эсэхээ шалгаарай.</li>
                 <li>Бүртгэлийн дугаараа хадгалаарай.</li>
+                <li>Таны бүртгэл дээр алдаа гарсан бол зохион байгуулагчтай холбогдоно уу.</li>
                 {registrationFee > 0 && (
                   <li>Төлбөр төлөгдсөн тохиолдолд л бүртгэл баталгаажна.</li>
                 )}

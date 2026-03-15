@@ -11,13 +11,22 @@ interface ContestantsTabProps {
 
 export function ContestantsTab({ contestId, contestants }: ContestantsTabProps) {
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'Бага' | 'Дунд' | 'Ахлах'>('all');
 
-  const filtered = contestants.filter(c =>
-    c.first_name.toLowerCase().includes(search.toLowerCase()) ||
-    c.last_name.toLowerCase().includes(search.toLowerCase()) ||
-    c.reg_number.toLowerCase().includes(search.toLowerCase()) ||
-    c.organization.toLowerCase().includes(search.toLowerCase()),
-  );
+  const filtered = contestants.filter(c => {
+    const matchesSearch =
+      c.first_name.toLowerCase().includes(search.toLowerCase()) ||
+      c.last_name.toLowerCase().includes(search.toLowerCase()) ||
+      c.reg_number.toLowerCase().includes(search.toLowerCase()) ||
+      c.register_number.toLowerCase().includes(search.toLowerCase()) ||
+      c.organization.toLowerCase().includes(search.toLowerCase()) ||
+      c.class_level.toLowerCase().includes(search.toLowerCase());
+
+    const matchesCategory =
+      categoryFilter === 'all' || c.category === categoryFilter;
+
+    return matchesSearch && matchesCategory;
+  });
 
   const downloadCsv = () => {
     const token = localStorage.getItem('codex_admin_token');
@@ -56,6 +65,28 @@ export function ContestantsTab({ contestId, contestants }: ContestantsTabProps) 
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {[
+          { key: 'all', label: 'Бүгд' },
+          { key: 'Бага', label: 'Бага' },
+          { key: 'Дунд', label: 'Дунд' },
+          { key: 'Ахлах', label: 'Ахлах' },
+        ].map(item => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setCategoryFilter(item.key as 'all' | 'Бага' | 'Дунд' | 'Ахлах')}
+            className={`rounded-xl px-4 py-2 text-sm font-bold transition-colors ${
+              categoryFilter === item.key
+                ? 'bg-cyan-500 text-white'
+                : 'border border-white/[0.08] text-slate-400 hover:border-cyan-500/30 hover:text-cyan-400'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       {filtered.length === 0 ? (
         <div className="text-center py-16 border border-dashed border-white/[0.08] rounded-2xl">
           <Users size={36} className="text-slate-700 mx-auto mb-3" />
@@ -66,7 +97,7 @@ export function ContestantsTab({ contestId, contestants }: ContestantsTabProps) 
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-white/[0.06]">
-                {['Дугаар', 'Нэр', 'Сургууль', 'Ангилал', 'Төлбөр', 'Утас'].map(h => (
+                {['Дугаар', 'Регистр', 'Нэр', 'Сургууль', 'ЕБС', 'Ангилал', 'Төлбөр', 'Утас'].map(h => (
                   <th key={h} className="px-4 py-3.5 text-[10px] font-black uppercase tracking-[0.12em] text-slate-600">{h}</th>
                 ))}
               </tr>
@@ -77,8 +108,10 @@ export function ContestantsTab({ contestId, contestants }: ContestantsTabProps) 
                 return (
                   <tr key={c.id} className="hover:bg-white/[0.03] transition-colors">
                     <td className="px-4 py-3 font-mono text-cyan-400 font-bold text-xs">{c.reg_number}</td>
+                    <td className="px-4 py-3 font-mono text-slate-300 font-bold text-xs">{c.register_number}</td>
                     <td className="px-4 py-3 font-semibold text-white">{c.last_name} {c.first_name}</td>
                     <td className="px-4 py-3 text-slate-400">{c.organization}</td>
+                    <td className="px-4 py-3 text-slate-400">{c.class_level}</td>
                     <td className="px-4 py-3">
                       <span className="bg-violet-500/10 text-violet-400 text-[10px] font-bold px-2.5 py-1 rounded-lg ring-1 ring-inset ring-violet-500/20">{c.category}</span>
                     </td>

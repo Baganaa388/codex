@@ -39,7 +39,7 @@ export default function ContactPage() {
     <div className="max-w-7xl mx-auto px-6 space-y-16">
       <SectionHeading
         title="Холбоо барих"
-        subtitle="Холбоо барих хэсэгт таны санал, сэтгэгдэл, асуулт бүхий хүсэлтийг илгээж болно."
+        subtitle=""
       />
 
       <Suspense fallback={<ContactSkeleton />}>
@@ -70,7 +70,7 @@ async function ContactContent() {
               <Phone size={24} />
             </div>
             <h4 className="font-bold text-slate-500 uppercase tracking-widest text-[10px] mb-2">Утас</h4>
-            <p className="font-bold">80582004</p>
+            <p className="font-bold">77240101</p>
           </Card>
         </div>
 

@@ -11,6 +11,8 @@ export function createContestantService(
   return Object.freeze({
     async register(data: {
       contest_id: number;
+      register_number: string;
+      class_level: string;
       first_name: string;
       last_name: string;
       email: string;
@@ -32,6 +34,11 @@ export function createContestantService(
         throw new AppError('Email already registered for this contest', 409);
       }
 
+      const duplicateRegisterNumber = await contestantRepo.findByRegisterNumber(data.register_number);
+      if (duplicateRegisterNumber) {
+        throw new AppError('Register number already registered', 409);
+      }
+
       const sequence = await contestantRepo.getNextSequence(data.contest_id);
       const regNumber = generateRegNumber(sequence, data.contest_id);
 
@@ -39,6 +46,8 @@ export function createContestantService(
 
       return contestantRepo.create({
         ...data,
+        register_number: data.register_number.trim().toUpperCase(),
+        class_level: data.class_level.trim(),
         reg_number: regNumber,
         payment_status: paymentStatus,
       });

@@ -1,44 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
-
-const useCountUp = (end: number, duration = 2000) => {
-  const [count, setCount] = useState(0);
-  const [started, setStarted] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) setStarted(true); },
-      { threshold: 0.3 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!started) return;
-    const steps = 60;
-    const increment = end / steps;
-    let current = 0;
-    const interval = window.setInterval(() => {
-      current += increment;
-      if (current >= end) {
-        setCount(end);
-        window.clearInterval(interval);
-      } else {
-        setCount(Math.floor(current));
-      }
-    }, duration / steps);
-    return () => window.clearInterval(interval);
-  }, [started, end, duration]);
-
-  return { count, ref };
-};
 
 const DEFAULT_SLIDES = [
   { src: '/logo/slides/hero-1.png', alt: 'Programming competition scene' },
@@ -53,40 +17,7 @@ const HERO_COPY = {
   sub: 'CodeX олимпиадад оролцож, өөрийн чадвараа сорь. Монголын шилдэг программистуудтай өрсөлдөж, дараагийн түвшинд хүр.',
   cta1: 'Бүртгүүлэх',
   cta2: 'Лидерүүд үзэх',
-  stat1: 'оролцогч',
-  stat2: 'бодлого',
-  stat3: 'аймаг',
 };
-
-const HERO_STATS_DATA = [
-  { end: 500, suffix: '+', label: HERO_COPY.stat1 },
-  { end: 50, suffix: '+', label: HERO_COPY.stat2 },
-  { end: 12, suffix: '', label: HERO_COPY.stat3 },
-];
-
-function CountUpNumber({ end, suffix }: { end: number; suffix: string }) {
-  const { count, ref } = useCountUp(end);
-  return (
-    <div ref={ref} className="text-3xl font-bold text-white md:text-4xl tabular-nums">
-      {count}{suffix}
-    </div>
-  );
-}
-
-function HeroStats() {
-  return (
-    <div className="mt-12 grid grid-cols-3 gap-8 md:gap-16">
-      {HERO_STATS_DATA.map((stat) => (
-        <div key={stat.label} className="text-center">
-          <CountUpNumber end={stat.end} suffix={stat.suffix} />
-          <div className="mt-1 text-xs tracking-wider text-slate-400 uppercase">
-            {stat.label}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 interface HeroSlide {
   readonly src: string;
@@ -176,7 +107,6 @@ export function HeroSection({ slides }: { slides?: readonly HeroSlide[] }) {
           </Link>
         </div>
 
-        <HeroStats />
       </div>
 
       <div className="absolute bottom-8 left-1/2 z-10 flex -translate-x-1/2 gap-2">

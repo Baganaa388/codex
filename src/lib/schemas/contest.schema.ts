@@ -84,3 +84,15 @@ export const feeFormSchema = z.object({
     .refine(v => v === 0 || v >= 5000, { message: 'Хамгийн багадаа ₮5,000 эсвэл 0 (үнэгүй)' }),
 });
 export type FeeFormInput = z.infer<typeof feeFormSchema>;
+
+export const dateScheduleFormSchema = z.object({
+  start_time: z.string().min(1, 'Эхлэх огноо оруулна уу'),
+  end_time: z.string().min(1, 'Дуусах огноо оруулна уу'),
+}).refine(
+  data => new Date(data.end_time).getTime() > new Date(data.start_time).getTime(),
+  {
+    message: 'Дуусах огноо эхлэх огнооноос хойш байх ёстой',
+    path: ['end_time'],
+  },
+);
+export type DateScheduleFormInput = z.infer<typeof dateScheduleFormSchema>;

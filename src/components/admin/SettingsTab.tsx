@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   timelineFormSchema, type TimelineFormInput,
   feeFormSchema, type FeeFormInput,
+  dateScheduleFormSchema, type DateScheduleFormInput,
 } from '@/lib/schemas/contest.schema';
 import { useAdmin } from '@/hooks/useAdmin';
 import type { Contest, ApiResponse } from '@/lib/types';
@@ -18,6 +19,19 @@ const DEFAULT_TIMELINE_ITEMS = [
   { title: 'Финал', desc: 'Улаанбаатар хотод', date: '' },
   { title: 'Шагнал', desc: 'Ялагчдыг тодруулах', date: '' },
 ];
+
+const toDateTimeLocal = (value: Date | string) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  const hours = `${date.getHours()}`.padStart(2, '0');
+  const minutes = `${date.getMinutes()}`.padStart(2, '0');
+
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
 
 interface SettingsTabProps {
   readonly contestId: number;
@@ -41,12 +55,23 @@ export function SettingsTab({ contestId, initialContest }: SettingsTabProps) {
     resolver: zodResolver(feeFormSchema),
     defaultValues: { registration_fee: contest.registration_fee ?? 0 },
   });
+  const scheduleForm = useForm<DateScheduleFormInput>({
+    resolver: zodResolver(dateScheduleFormSchema),
+    defaultValues: {
+      start_time: toDateTimeLocal(contest.start_time),
+      end_time: toDateTimeLocal(contest.end_time),
+    },
+  });
 
   useEffect(() => {
     const t = contest.timeline;
     const items = Array.isArray(t) && t.length > 0 ? t.map(item => ({ ...item })) : DEFAULT_TIMELINE_ITEMS;
     timelineForm.reset({ items });
     feeForm.reset({ registration_fee: contest.registration_fee ?? 0 });
+    scheduleForm.reset({
+      start_time: toDateTimeLocal(contest.start_time),
+      end_time: toDateTimeLocal(contest.end_time),
+    });
   }, [contest]);
 
   const statuses = ['draft', 'registration', 'active', 'grading', 'finished'] as const;
@@ -79,6 +104,18 @@ export function SettingsTab({ contestId, initialContest }: SettingsTabProps) {
     const res = await authFetch<Contest>(`/api/contests/${contestId}`, { method: 'PUT', body: JSON.stringify({ registration_fee: data.registration_fee }) });
     if (res.success && res.data) setContest(res.data);
     setMsg('Хураамж хадгалагдлаа!');
+  };
+
+  const onSaveSchedule = async (data: DateScheduleFormInput) => {
+    const res = await authFetch<Contest>(`/api/contests/${contestId}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        start_time: new Date(data.start_time).toISOString(),
+        end_time: new Date(data.end_time).toISOString(),
+      }),
+    });
+    if (res.success && res.data) setContest(res.data);
+    setMsg('Огноо хадгалагдлаа!');
   };
 
   return (
@@ -120,6 +157,38 @@ export function SettingsTab({ contestId, initialContest }: SettingsTabProps) {
           <button type="submit" disabled={timelineForm.formState.isSubmitting}
             className="inline-flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
             {timelineForm.formState.isSubmitting && <Loader2 size={16} className="animate-spin" />} Хадгалах
+          </button>
+        </form>
+      </SettingsCard>
+
+      <SettingsCard title="Эхлэх / Дуусах огноо">
+        <form onSubmit={scheduleForm.handleSubmit(onSaveSchedule)} className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <label className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Эхлэх огноо</span>
+              <input
+                type="datetime-local"
+                {...scheduleForm.register('start_time')}
+                className={INPUT_CLS}
+              />
+            </label>
+            <label className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Дуусах огноо</span>
+              <input
+                type="datetime-local"
+                {...scheduleForm.register('end_time')}
+                className={INPUT_CLS}
+              />
+            </label>
+          </div>
+          {(scheduleForm.formState.errors.start_time || scheduleForm.formState.errors.end_time) && (
+            <p className="text-xs text-red-400 font-medium">
+              {scheduleForm.formState.errors.start_time?.message ?? scheduleForm.formState.errors.end_time?.message}
+            </p>
+          )}
+          <button type="submit" disabled={scheduleForm.formState.isSubmitting}
+            className="inline-flex items-center gap-2 bg-cyan-500 hover:bg-cyan-400 text-white font-bold px-5 py-2.5 rounded-xl text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+            {scheduleForm.formState.isSubmitting && <Loader2 size={16} className="animate-spin" />} Хадгалах
           </button>
         </form>
       </SettingsCard>

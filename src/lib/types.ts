@@ -33,6 +33,8 @@ export interface Contestant {
   readonly id: number;
   readonly contest_id: number;
   readonly reg_number: string;
+  readonly register_number: string;
+  readonly class_level: string;
   readonly first_name: string;
   readonly last_name: string;
   readonly email: string;

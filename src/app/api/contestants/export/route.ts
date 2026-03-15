@@ -25,14 +25,16 @@ export async function GET(request: NextRequest) {
       return str;
     };
 
-    const header = ['Дугаар', 'Овог', 'Нэр', 'Имэйл', 'Утас', 'Сургууль', 'Ангилал', 'Төлбөр', 'Бүртгэсэн огноо'];
+    const header = ['Дугаар', 'Регистрийн дугаар', 'Овог', 'Нэр', 'Имэйл', 'Утас', 'Сургууль', 'ЕБС анги', 'Ангилал', 'Төлбөр', 'Бүртгэсэн огноо'];
     const csvRows = rows.map(c => [
       c.reg_number,
+      c.register_number,
       c.last_name,
       c.first_name,
       c.email,
       c.phone,
       c.organization,
+      c.class_level,
       c.category,
       c.payment_status === 'paid' ? 'Төлсөн' : c.payment_status === 'free' ? 'Үнэгүй' : 'Хүлээгдэж буй',
       new Date(c.created_at).toISOString(),

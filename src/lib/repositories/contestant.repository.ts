@@ -19,7 +19,7 @@ export function createContestantRepository(pool: Pool) {
       }
 
       if (options?.search) {
-        conditions.push(`(first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR reg_number ILIKE $${paramIndex})`);
+        conditions.push(`(first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR reg_number ILIKE $${paramIndex} OR register_number ILIKE $${paramIndex})`);
         params.push(`%${options.search}%`);
         paramIndex++;
       }
@@ -54,6 +54,14 @@ export function createContestantRepository(pool: Pool) {
       return result.rows[0] ?? null;
     },
 
+    async findByRegisterNumber(registerNumber: string): Promise<Contestant | null> {
+      const result = await pool.query<Contestant>(
+        'SELECT * FROM contestants WHERE register_number = $1',
+        [registerNumber.trim().toUpperCase()],
+      );
+      return result.rows[0] ?? null;
+    },
+
     async findById(id: number): Promise<Contestant | null> {
       const result = await pool.query<Contestant>(
         'SELECT * FROM contestants WHERE id = $1',
@@ -81,6 +89,8 @@ export function createContestantRepository(pool: Pool) {
     async create(data: {
       contest_id: number;
       reg_number: string;
+      register_number: string;
+      class_level: string;
       first_name: string;
       last_name: string;
       email: string;
@@ -90,10 +100,10 @@ export function createContestantRepository(pool: Pool) {
       payment_status: string;
     }): Promise<Contestant> {
       const result = await pool.query<Contestant>(
-        `INSERT INTO contestants (contest_id, reg_number, first_name, last_name, email, phone, organization, category, payment_status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `INSERT INTO contestants (contest_id, reg_number, register_number, class_level, first_name, last_name, email, phone, organization, category, payment_status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          RETURNING *`,
-        [data.contest_id, data.reg_number, data.first_name, data.last_name, data.email, data.phone, data.organization, data.category, data.payment_status],
+        [data.contest_id, data.reg_number, data.register_number, data.class_level, data.first_name, data.last_name, data.email, data.phone, data.organization, data.category, data.payment_status],
       );
       return result.rows[0];
     },
